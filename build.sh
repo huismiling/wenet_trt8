@@ -23,6 +23,7 @@ cd /target/wenet_plugin/build/
 cmake ..
 make -j
 cd /target/
+cp wenet_plugin/build/libmhalugin.so . -s
 
 python fix_decoder.py
 python replace_decoder_attn.py
