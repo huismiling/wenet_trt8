@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CUSTOM_MHA_PLUGIN_H
-#define CUSTOM_MHA_PLUGIN_H
+#ifndef CUSTOM_LAYER_NORM_PLUGIN_H
+#define CUSTOM_LAYER_NORM_PLUGIN_H
 
 #include "NvInferPlugin.h"
 // #include "decoder_masked_multihead_attention.h"
@@ -24,23 +24,21 @@
 #include <string>
 #include <vector>
 
-#include "utils.h"
-
 using namespace nvinfer1;
 
 // One of the preferred ways of making TensorRT to be able to see
 // our custom layer requires extending IPluginV2 and IPluginCreator classes.
 // For requirements for overriden functions, check TensorRT API docs.
 
-class MHAPlugin : public IPluginV2DynamicExt 
+class LayerNormPlugin : public IPluginV2DynamicExt 
 {
 public:
-    MHAPlugin(const std::string name, bool isCrossAtten);
+    LayerNormPlugin(const std::string name);
 
-    MHAPlugin(const std::string name, const void* data, size_t length);
+    LayerNormPlugin(const std::string name, const void* data, size_t length);
 
-    // It doesn't make sense to make MHAPlugin without arguments, so we delete default constructor.
-    MHAPlugin() = delete;
+    // It doesn't make sense to make LayerNormPlugin without arguments, so we delete default constructor.
+    LayerNormPlugin() = delete;
 
     int getNbOutputs() const noexcept override;
 
@@ -63,7 +61,7 @@ public:
                         cublasContext * cublas_handle,
                         IGpuAllocator * gpu_allocator
                         )noexcept override;
-    int pre_enqueue(cudaStream_t stream) noexcept ;
+
     int enqueue(const PluginTensorDesc* inputDesc,
                 const PluginTensorDesc* outputDesc,
                 const void *const *     inputs,
@@ -113,16 +111,15 @@ private:
     const std::string mLayerName;
     size_t mInputVolume;
     std::string mNamespace;
-    bool isCrossAtten;
     cublasHandle_t cublasHandle_;
     IGpuAllocator * gpu_allocator_;
 
 };
 
-class MHAPluginCreator : public IPluginCreator
+class LayerNormPluginCreator : public IPluginCreator
 {
 public:
-    MHAPluginCreator();
+    LayerNormPluginCreator();
 
     const char* getPluginName() const noexcept override;
 

@@ -36,12 +36,14 @@ set_ifndef(CUBLAS_LIB ${_CUBLAS_LIB})
 add_compile_definitions(TENSORRT_BUILD_LIB)
 
 # Define plugin library target
-FILE(GLOB pluginSources plugin/*)
+FILE(GLOB pluginSources plugin/*.cu)
+message("-- pluginSources : ${pluginSources}")
+
 add_library(mhalugin MODULE
   ${pluginSources}
 )
 
-# Use C++11
+# Use C++14
 target_compile_features(mhalugin PUBLIC cxx_std_14 )
 
 # Link TensorRT's nvinfer lib
