@@ -245,8 +245,8 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
         enc_in = q_share;
         enc_mask_num = batch_size;
     }
-    printf("debug  inputs %d %d %d, %d %d %d \n", batch_size, seq_len0, d_model, 
-                    inputDesc[1].dims.d[0], inputDesc[1].dims.d[1], inputDesc[1].dims.d[2]);
+    // printf("debug  inputs %d %d %d, %d %d %d \n", batch_size, seq_len0, d_model, 
+    //                 inputDesc[1].dims.d[0], inputDesc[1].dims.d[1], inputDesc[1].dims.d[2]);
 
     // dump2Txt((float*)(query_in), batch_size*seq_len0*d_model, "dump_trt_input/"+mLayerName+"_query_in.txt");
     // dump2Txt((float*)(q_share), batch_size*seq_len0*d_model, "dump_trt_input/"+mLayerName+"_query_layer_norm.txt");
