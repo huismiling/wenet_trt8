@@ -20,6 +20,7 @@ trtexec --workspace=3000 \
 
 mkdir /target/wenet_plugin/build/
 cd /target/wenet_plugin/build/
+cmake ..
 make -j
 cd /target/
 

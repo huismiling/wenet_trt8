@@ -26,7 +26,7 @@ from datetime import datetime as dt
 # from torch.autograd import Variable
 from cuda import cudart
 import tensorrt as trt
-from trt_qant import calibrator
+# from trt_qant import calibrator
 import ctypes
 
 cacheFile = "./int8.cache"
