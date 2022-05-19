@@ -188,9 +188,10 @@ int LayerNormPlugin::enqueue(const PluginTensorDesc*  inputDesc,
     const int seq_len0    = inputDesc[0].dims.d[1];    // T0 for q
     const int d_model     = inputDesc[0].dims.d[2];    // D
     int widx = 0;
-    float *data_in               = (float*)(inputs[widx++]);
-    float *layer_norm_gamma      = (float*)(inputs[widx++]);
-    float *layer_norm_beta       = (float*)(inputs[widx++]);
+    const void *data_in               = inputs[widx++];
+    const void *layer_norm_gamma      = inputs[widx++];
+    const void *layer_norm_beta       = inputs[widx++];
+    
     // dump2Txt((float*)(query_in), batch_size*seq_len0*d_model, "dump_trt_input/query_in.txt");
     // dump2Txt((float*)(enc_in), batch_size*seq_len1*d_model, "dump_trt_input/enc_in.txt");
     // dump2Txt((int*)(enc_mask), batch_size/10, "dump_trt_input/enc_mask.txt");
@@ -206,16 +207,30 @@ int LayerNormPlugin::enqueue(const PluginTensorDesc*  inputDesc,
     //                 inputDesc[1].dims.d[0], inputDesc[1].dims.d[1], inputDesc[1].dims.d[2]);
     cudaStreamSynchronize(stream);
     // cublasSetStream(cublasHandle_, stream);
-
-    invokeGeneralLayerNorm((float*)(outputs[0]),     //  float* out,
-                        data_in,        //  const float* input,
-                        layer_norm_gamma,   //  const float* gamma,
-                        layer_norm_beta,    //  const float* beta,
+    if(inputDesc[0].type == DataType::kFLOAT)
+    {
+        invokeGeneralLayerNorm((float*)(outputs[0]),     //  float* out,
+                        (float*)data_in,        //  const float* input,
+                        (float*)layer_norm_gamma,   //  const float* gamma,
+                        (float*)layer_norm_beta,    //  const float* beta,
                         batch_size*seq_len0,    //  const int m,
                         d_model,                //  const int n,
                         stream,             //  cudaStream_t stream,
                         0                   //  int opt_version
                     );
+    }
+    else if(inputDesc[0].type == DataType::kHALF)
+    {
+        invokeGeneralLayerNorm((half*)(outputs[0]),     //  float* out,
+                        (half*)data_in,        //  const float* input,
+                        (half*)layer_norm_gamma,   //  const float* gamma,
+                        (half*)layer_norm_beta,    //  const float* beta,
+                        batch_size*seq_len0,    //  const int m,
+                        d_model,                //  const int n,
+                        stream,             //  cudaStream_t stream,
+                        0                   //  int opt_version
+                    );
+    }
 
     return status;
 }
@@ -258,7 +273,8 @@ bool LayerNormPlugin::supportsFormatCombination(int32_t               pos,
     // default:
     //     break;
     // }
-    return inOut[pos].type == DataType::kFLOAT;
+    return inOut[pos].type == DataType::kFLOAT || 
+            inOut[pos].type == DataType::kHALF;
 }
 
 
