@@ -181,7 +181,7 @@ int LayerNormPlugin::enqueue(const PluginTensorDesc*  inputDesc,
                     void *                  workspace,
                     cudaStream_t            stream) noexcept
 {
-    cudaStreamSynchronize(stream);
+    // cudaStreamSynchronize(stream);
     //  input : q, enc_in, enc_lens, qw, qb, kw, kb, vw, vb, lw, lb
     int status = 0;
     const int batch_size  = inputDesc[0].dims.d[0];    // B
@@ -205,7 +205,7 @@ int LayerNormPlugin::enqueue(const PluginTensorDesc*  inputDesc,
     // dump2Txt((float*)(output_weight_bias)  , d_model,         "dump_trt_input/linear_bias.txt");
     // printf("debug  inputs %d %d %d, %d %d %d \n", batch_size, seq_len0, d_model, 
     //                 inputDesc[1].dims.d[0], inputDesc[1].dims.d[1], inputDesc[1].dims.d[2]);
-    cudaStreamSynchronize(stream);
+    // cudaStreamSynchronize(stream);
     // cublasSetStream(cublasHandle_, stream);
     if(inputDesc[0].type == DataType::kFLOAT)
     {

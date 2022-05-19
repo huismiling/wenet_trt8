@@ -228,7 +228,7 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
     float* v_buf   = (float*)workspace + ws_offset; ws_offset += batch_size*seq_len1*d_model;
     float* v_bias  = (float*)workspace + ws_offset; ws_offset += batch_size*seq_len1*d_model;
 
-    cudaStreamSynchronize(stream);
+    // cudaStreamSynchronize(stream);
     cublasSetStream(cublasHandle_, stream);
 
     invokeGeneralLayerNorm(q_share,     //  float* out,
@@ -294,7 +294,7 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
         (const float*)(enc_in), d_model,
         &beta, v_buf, d_model
     );
-    cudaStreamSynchronize(stream);
+    // cudaStreamSynchronize(stream);
     // dump2Txt((float*)(q_share), batch_size*seq_len0*d_model, "dump_trt/"+mLayerName+"_q_in.txt");
     // dump2Txt((float*)(enc_in), batch_size*seq_len1*d_model, "dump_trt/"+mLayerName+"_enc_in.txt");
     // dump2Txt(q_buf, batch_size*seq_len0*d_model, "dump_trt/"+mLayerName+"_q_buf.txt");
@@ -313,7 +313,7 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
         k_bias, k_buf, key_weight_bias, batch_size, seq_len1, head_num, size_per_head);
     add_fusedQKV_bias_transpose_kernel<<<gridq, block, 0, stream>>>(
         v_bias, v_buf, value_weight_bias, batch_size, seq_len1, head_num, size_per_head);
-    cudaStreamSynchronize(stream);
+    // cudaStreamSynchronize(stream);
     // dump2Txt(q_share, batch_size*seq_len0*d_model, "dump_trt/"+mLayerName+"_q_bias_trans.txt");
     // dump2Txt(k_bias, batch_size*seq_len1*d_model, "dump_trt/"+mLayerName+"_k_bias_trans.txt");
     // dump2Txt(v_bias, batch_size*seq_len1*d_model, "dump_trt/"+mLayerName+"_v_bias_trans.txt");
@@ -338,7 +338,7 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
             seq_len0*seq_len1,      //strideC,
             batch_size*head_num     //batchCount
         );
-    cudaStreamSynchronize(stream);
+    // cudaStreamSynchronize(stream);
     // dump2Txt(qk_buf, batch_size*head_num*seq_len0*seq_len1, "dump_trt/"+mLayerName+"_qk_buf.txt");
     
     float scalar = 1 / sqrtf(size_per_head * 1.0f);
@@ -353,7 +353,7 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
                         scalar,
                         stream
         );
-    cudaStreamSynchronize(stream);
+    // cudaStreamSynchronize(stream);
     // dump2Txt(qk_buf, batch_size*head_num*seq_len0*seq_len1, "dump_trt/"+mLayerName+"_softmax.txt");
 
     cublasSgemmStridedBatched(
@@ -376,12 +376,12 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
             seq_len0*size_per_head, //strideC,
             batch_size*head_num     //batchCount
         );
-    cudaStreamSynchronize(stream);
+    // cudaStreamSynchronize(stream);
     // dump2Txt(q_buf, batch_size*head_num*seq_len0*size_per_head, "dump_trt/"+mLayerName+"_qkv.txt");
 
     invokeTransposeQKV(
         out_buf, q_buf, batch_size, seq_len0, head_num, size_per_head, stream);
-    cudaStreamSynchronize(stream);
+    // cudaStreamSynchronize(stream);
     // dump2Txt(out_buf, batch_size*head_num*seq_len0*size_per_head, "dump_trt/"+mLayerName+"_qkv_trans.txt");
     // dump2Txt(output_weight_kernel, d_model*d_model, "dump_trt/"+mLayerName+"_lw.txt");
 
@@ -395,7 +395,7 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
         (const float*)(out_buf), d_model,
         &beta, (float*)(outputs[0]), d_model
     );
-    cudaStreamSynchronize(stream);
+    // cudaStreamSynchronize(stream);
     // dump2Txt((float*)(outputs[0]), batch_size*head_num*seq_len0*size_per_head, "dump_trt/"+mLayerName+"_out_linear.txt");
     // add_bias_kernel<<<gridq, block, 0, stream>>>(
     //     (float*)(outputs[0]), (float*)(outputs[0]), output_weight_bias, 
@@ -407,7 +407,7 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
                         d_model,                    //  const int n, 
                         stream
                 );
-    cudaStreamSynchronize(stream);
+    // cudaStreamSynchronize(stream);
     // dump2Txt((float*)(outputs[0]), batch_size*head_num*seq_len0*size_per_head, "dump_trt/"+mLayerName+"_out_final.txt");
 
     return status;
