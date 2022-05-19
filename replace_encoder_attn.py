@@ -3,7 +3,7 @@
 import onnx
 import onnx_graphsurgeon as gs
 
-
+import numpy as np
 
 
 
@@ -42,6 +42,28 @@ def replace_layer_norm(self, inputs, outputs, name):
                     name=name,
                     )
 
+
+def find_node(graph, name):
+    for node in graph.nodes:
+        if node.name == name:
+            return node
+
+@gs.Graph.register()
+def replace_div_2_mul(self, inputs, outputs, name):
+    # Disconnect output nodes of all input tensors
+    # for inp in inputs:
+    #     inp.outputs.clear()
+
+    # Disconnet input nodes of all output tensors
+    for out in outputs:
+        out.inputs.clear()
+
+    # Insert the new node.
+    return self.layer(op="Mul", 
+                    inputs=inputs, 
+                    outputs=outputs,
+                    name=name,
+                    )
 
 
 cross_attn_nodes = [
@@ -396,6 +418,12 @@ layer_norm_nodes = [
         "outs" : ["encoder_out"]},
 ]
 
+div_2_mul_nodes =[
+    "Div_156", "Div_313", "Div_470", "Div_627", "Div_784", 
+    "Div_941", "Div_1098", "Div_1255", "Div_1412",  
+    "Div_1569", "Div_1726", "Div_1883", "Div_1977", 
+]
+
 if __name__ == "__main__":
     graph = gs.import_onnx(onnx.load("encoder_new.onnx"))
 
@@ -423,6 +451,12 @@ if __name__ == "__main__":
         name = "layer_norm_{}".format(i)
         graph.replace_layer_norm(inputs, outputs, name)
 
+    for itn, itd in enumerate(div_2_mul_nodes):
+        div_node = find_node(graph, itd)
+        print(div_node)
+        div_node.op = "Mul"
+        ci = gs.Constant("Div2Mul_{}".format(itn), np.array(0.125, dtype=np.float32))
+        div_node.inputs[1] = ci
     # Remove the now-dangling subgraph.
     graph.cleanup().toposort()
 
