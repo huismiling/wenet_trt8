@@ -69,7 +69,7 @@ set(CMAKE_C_FLAGS    "${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS}")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}  -Xcompiler -Wall -ldl")
 
-set(SM_SETS 86)
+set(SM_SETS 52 60 61 70 75 80 86)
 set(USING_WMMA False)
 set(FIND_SM False)
 
@@ -82,7 +82,7 @@ foreach(SM_NUM IN LISTS SM_SETS)
     set(FIND_SM True)
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_${SM_NUM},code=\\\"sm_${SM_NUM},compute_${SM_NUM}\\\"")
 
-    if (SM_NUM STREQUAL 86)
+    if (SM_NUM STREQUAL 70 OR SM_NUM STREQUAL 75 OR SM_NUM STREQUAL 80 OR SM_NUM STREQUAL 86)
       set(USING_WMMA True)
     endif()
 
@@ -100,6 +100,9 @@ endif()
 
 if(NOT (FIND_SM STREQUAL True))
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}  \
+                        -gencode=arch=compute_70,code=\\\"sm_70,compute_70\\\" \
+                        -gencode=arch=compute_75,code=\\\"sm_75,compute_75\\\" \
+                        -gencode=arch=compute_80,code=\\\"sm_80,compute_80\\\" \
                         -gencode=arch=compute_86,code=\\\"sm_86,compute_86\\\" \
                         ")
   #                      -rdc=true")
@@ -107,10 +110,10 @@ if(NOT (FIND_SM STREQUAL True))
   set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS}  -DWMMA")
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -DWMMA")
   if(BUILD_PYT)
-    set(ENV{TORCH_CUDA_ARCH_LIST} "8.6")
+  set(ENV{TORCH_CUDA_ARCH_LIST} "7.0;7.5;8.0;8.6")
   endif()
-  set(CMAKE_CUDA_ARCHITECTURES 86)
-  message("-- Assign GPU architecture (sm=86)")
+  set(CMAKE_CUDA_ARCHITECTURES 70 75 80 86)
+  message("-- Assign GPU architecture (sm=70,75,80,86)")
 endif()
 
 
