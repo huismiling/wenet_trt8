@@ -592,12 +592,12 @@ void invokeTransposeQKV(T* dst,
                 transpose<half2><<<grid, block, 0, stream>>>(
                     (half2*)src, (half2*)dst, batch_size, seq_len, head_num, size_per_head / 2);
             }
-#ifdef ENABLE_BF16
-            else {
-                transpose<__nv_bfloat162><<<grid, block, 0, stream>>>(
-                    (__nv_bfloat162*)src, (__nv_bfloat162*)dst, batch_size, seq_len, head_num, size_per_head / 2);
-            }
-#endif
+// #ifdef ENABLE_BF16
+//             else {
+//                 transpose<__nv_bfloat162><<<grid, block, 0, stream>>>(
+//                     (__nv_bfloat162*)src, (__nv_bfloat162*)dst, batch_size, seq_len, head_num, size_per_head / 2);
+//             }
+// #endif
         }
         else {
             block.x = seq_per_block * size_per_head;
@@ -732,13 +732,13 @@ template void invokeGeneralLayerNorm(half* out,
                                      const int n,
                                      cudaStream_t stream,
                                      int opt_version);
-#ifdef ENABLE_BF16
-template void invokeGeneralLayerNorm(__nv_bfloat16* out,
-                                     const __nv_bfloat16* input,
-                                     const __nv_bfloat16* gamma,
-                                     const __nv_bfloat16* beta,
-                                     const int m,
-                                     const int n,
-                                     cudaStream_t stream,
-                                     int opt_version);
-#endif
+// #ifdef ENABLE_BF16
+// template void invokeGeneralLayerNorm(__nv_bfloat16* out,
+//                                      const __nv_bfloat16* input,
+//                                      const __nv_bfloat16* gamma,
+//                                      const __nv_bfloat16* beta,
+//                                      const int m,
+//                                      const int n,
+//                                      cudaStream_t stream,
+//                                      int opt_version);
+// #endif
