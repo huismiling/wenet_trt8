@@ -14,11 +14,6 @@
 #         --shapes=speech:1x16x80,speech_lengths:1 \
 #         --saveEngine=./encoder.plan \
 #         --verbose
-python fix_encoder.py
-python replace_encoder_attn.py
-python onnx2trt.py encoder encoder_replaced.onnx encoder.plan
-
-
 
 mkdir /target/wenet_plugin/build/
 cd /target/wenet_plugin/build/
@@ -26,6 +21,12 @@ cmake ..
 make -j
 cd /target/
 cp wenet_plugin/build/libmhalugin.so . -s
+
+
+python fix_encoder.py
+python replace_encoder_attn.py
+python onnx2trt.py encoder encoder_replaced.onnx encoder.plan
+
 
 python fix_decoder.py
 python replace_decoder_attn.py
