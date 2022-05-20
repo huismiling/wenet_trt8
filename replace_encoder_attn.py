@@ -425,7 +425,7 @@ div_2_mul_nodes =[
 ]
 
 if __name__ == "__main__":
-    graph = gs.import_onnx(onnx.load("encoder_new.onnx"))
+    graph = gs.import_onnx(onnx.load("encoder_quant_fixed.onnx"))
 
     tmap = graph.tensors()
     # You can figure out the input and output tensors using Netron. In our case:

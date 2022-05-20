@@ -89,9 +89,9 @@ if 1:
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
     profile = builder.create_optimization_profile()
     config = builder.create_builder_config()
-    # if ckey == "encoder":
-    #     config.flags = 1 << int(trt.BuilderFlag.FP16)
-        # config.int8_calibrator = calibrator.MyCalibrator(npDataList, calibrationCount, inputShapes, cacheFile)
+    if ckey == "encoder":
+        config.flags = 1 << int(trt.BuilderFlag.INT8)
+    #     config.int8_calibrator = calibrator.MyCalibrator(npDataList, calibrationCount, inputShapes, cacheFile)
     config.max_workspace_size = 1 << 50
     parser = trt.OnnxParser(network, logger)
     if not os.path.exists(onnxFile):

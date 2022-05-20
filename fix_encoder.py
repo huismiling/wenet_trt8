@@ -1,9 +1,34 @@
 import numpy as np
 import onnx
 import onnx_graphsurgeon as gs
+
+def get_quant_nodes(graph):
+    quant_nodes = []
+    exclude_nodes = [] # ["MatMul_178", "MatMul_141", "MatMul_119", "MatMul_125", 
+                       #  "MatMul_131", "Transpose_173", "Reshape_177"]
+    for node in graph.nodes:
+        if node.op in ["Conv"]:
+            quant_nodes.append(node.name)
+        # if node.op == "MatMul" and \
+        #     isinstance(node.inputs[1], gs.Constant):
+        #     quant_nodes.append(node.name)
+
+    for node in graph.nodes:
+        if node.op in ["Mul", "MatMul", "Add", "Transpose", "Reshape"]:
+            exclude_nodes.append(node.name)
+        # if node.op == "MatMul" and \
+        #     not isinstance(node.inputs[1], gs.Constant):
+        #     exclude_nodes.append(node.name)
+
+    with open("encoder_quant_nodes.txt", "w+") as f:
+        f.write('\n'.join(quant_nodes))
+    with open("encoder_quant_exclude_nodes.txt", "w+") as f:
+        f.write('\n'.join(exclude_nodes))
+
 def wenet_encoder():
     encoder = onnx.load("/workspace/encoder.onnx")
     graph =  gs.import_onnx(encoder)
+    get_quant_nodes(graph)
     Unsqueeze_29 = None
     for node in graph.nodes:
         if node.op == 'Unsqueeze' and node.name == "Unsqueeze_29":

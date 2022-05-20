@@ -24,6 +24,8 @@ cp wenet_plugin/build/libmhalugin.so . -s
 
 
 python fix_encoder.py
+python onnx_opt.py encoder_new.onnx encoder_opt.onnx
+python fix_quant_model.py
 python replace_encoder_attn.py
 python onnx2trt.py encoder encoder_replaced.onnx encoder.plan
 
