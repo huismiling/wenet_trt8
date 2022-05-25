@@ -34,7 +34,7 @@ WeNet模型分为encoder和decoder两个部分。其中，encoder主要使用了
 * 使用Half数据类型进行推理，encoder和decoder的精度损失严重。
 
 针对以上问题，本项目采用以下方法进行模型优化。
-* 手动合并onnx模型中的小算子，使用MultiHeadAttn、LayerNorm等大算子替代原始小算子。
+* 合并onnx模型中的小算子，使用MultiHeadAttn、LayerNorm等大算子替代原始小算子。
 * 使用trtexec解析替换大算子的模型。
 * 分析各个节点输出，定位误差大的节点，并使用高精度进行计算。
 * 尝试模型量化，使用INT8进行推理，保证精度的情况下，进一步加快速度。
