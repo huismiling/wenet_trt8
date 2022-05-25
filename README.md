@@ -1,5 +1,4 @@
 ## 总述
-模型来自开源语音识别工具包[WeNet](https://github.com/wenet-e2e/wenet)。
 
 请简练地概括项目的主要贡献，使读者可以快速理解并复现你的工作，包括：
 - 原始模型的名称及链接
@@ -7,27 +6,38 @@
 - 在Docker里面代码编译、运行步骤的完整说明
   - 请做到只要逐行运行你给的命令，就能把代码跑起来，比如从docker pull开始
 
+本项目使用TRT8部署开源语音识别工具包[WeNet](https://github.com/wenet-e2e/wenet)。为语音识别模型在TRT8上部署提供参考方案。
+原始模型来自[WeNet预训练模型](https://wenet.org.cn/wenet/pretrained_models.html）。
+
+优化效果：TODO
+
+Docker运行方法：TODO
+
 ## 原始模型
 ### 模型简介
 WeNet 是一款面向工业落地应用的语音识别工具包，提供了从语音识别模型的训练到部署的一条龙服务，其主要特点如下：
-
 * 使用 conformer 网络结构和 CTC/attention loss 联合优化方法，统一的流式/非流式语音识别方案，具有业界一流的识别效果。
 * 提供云上和端上直接部署的方案，最小化模型训练和产品落地之间的工程工作。
 * 框架简洁，模型训练部分完全基于 pytorch 生态，不依赖于 kaldi 等复杂的工具。
 * 详细的注释和文档，非常适合用于学习端到端语音识别的基础知识和实现细节。
 * 支持时间戳，对齐，端点检测，语言模型等相关功能。
 
-模型使用预训练模型导出onnx，然后进行。预训练模型导出可以参考[WeNet手册](https://wenet.org.cn/wenet/tutorial_aishell.html)。
+本项目的模型使用预训练模型导出onnx，然后进行TRT部署。预训练模型方法导出参考[WeNet手册](https://wenet.org.cn/wenet/tutorial_aishell.html)。
 
-
-请介绍模型的基本信息，可以包含但不限于以下内容：
-- 用途以及效果
-- 业界实际运用情况，比如哪些厂商、哪些产品在用
-- 模型的整体结构，尤其是有特色的部分
+训练等相关信息请参考官方：https://github.com/wenet-e2e/wenet。
 
 ### 模型优化的难点
-如果模型可以容易地跑在TensorRT上而且性能很好，就没有必要选它作为参赛题目并在这里长篇大论了。相信你选择了某个模型作为参赛题目必然有选择它的理由。  
-请介绍一下在模型在导出时、或用polygraphy/trtexec解析时、或在TensorRT运行时，会遇到什么问题。换句话说，针对这个模型，我们为什么需要额外的工程手段。
+
+WeNet模型分为encoder和decoder两个部分。其中，encoder主要使用了conv和self-attention结构，而decoder使用了self-attention和cross-attention结构。在模型转换和使用过程中存在以下问题：
+* 由于是pytorch导出onnx模型，因此onnx模型中使用了大量小算子拼凑出attention功能。
+* 在使用trtexec直接解析decoder模型时，在RTX 3080Ti 12G显卡上会出现显存不足的错误。
+* 使用Half数据类型进行推理，encoder和decoder的精度损失严重。
+
+针对以上问题，本项目采用以下方法进行模型优化。
+* 手动合并onnx模型中的小算子，使用MultiHeadAttn、LayerNorm等大算子替代原始小算子。
+* 使用trtexec解析替换大算子的模型。
+* 分析各个节点输出，定位误差大的节点，并使用高精度进行计算。
+* 尝试模型量化，使用INT8进行推理，保证精度的情况下，进一步加快速度。
 
 ## 优化过程
 这一部分是报告的主体。请把自己假定为老师，为TensorRT的初学者讲述如何从原始模型出发，经过一系列开发步骤，得到优化后的TensorRT模型。  
