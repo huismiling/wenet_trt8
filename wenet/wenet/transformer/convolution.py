@@ -99,9 +99,11 @@ class ConvolutionModule(nn.Module):
         x = x.transpose(1, 2)  # (#batch, channels, time)
 
         # mask batch padding
-        if mask_pad.size(2) > 0:  # time > 0
-            x.masked_fill_(~mask_pad, 0.0)
+        ####### FIX
+        #######if mask_pad.size(2) > 0:  # time > 0
+        x.masked_fill_(~mask_pad, 0.0)
 
+        ####### FIX
         if self.lorder > 0:
             if cache.size(2) == 0:  # cache_t == 0
                 x = nn.functional.pad(x, (self.lorder, 0), 'constant', 0.0)
@@ -130,7 +132,8 @@ class ConvolutionModule(nn.Module):
             x = x.transpose(1, 2)
         x = self.pointwise_conv2(x)
         # mask batch padding
-        if mask_pad.size(2) > 0:  # time > 0
-            x.masked_fill_(~mask_pad, 0.0)
-
+        ######## FIX
+        ######## if mask_pad.size(2) > 0:  # time > 0
+        x.masked_fill_(~mask_pad, 0.0)
+        ######## END
         return x.transpose(1, 2), new_cache
