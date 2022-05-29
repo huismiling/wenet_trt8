@@ -104,7 +104,7 @@ class RelPositionalEncoding(PositionalEncoding):
             torch.Tensor: Encoded tensor (batch, time, `*`).
             torch.Tensor: Positional embedding tensor (1, time, `*`).
         """
-        assert offset + x.size(1) < self.max_len
+        # assert offset + x.size(1) < self.max_len
         self.pe = self.pe.to(x.device)
         x = x * self.xscale
         pos_emb = self.pe[:, offset:offset + x.size(1)]
