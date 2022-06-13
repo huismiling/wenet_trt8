@@ -14,39 +14,31 @@
  * limitations under the License.
  */
 
-#ifndef CUSTOM_MHA_PLUGIN_H
-#define CUSTOM_MHA_PLUGIN_H
+#ifndef CUSTOM_MASKED_SOFTMAX_PLUGIN_H
+#define CUSTOM_MASKED_SOFTMAX_PLUGIN_H
 
 #include "NvInferPlugin.h"
+// #include "decoder_masked_multihead_attention.h"
 #include "cublas.h"
 #include "cublas_v2.h"
-#include "ft_utils/allocator.h"
-#include "ft_utils/cublasAlgoMap.h"
-#include "ft_utils/cuda_utils.h"
-#include "ft_utils/cublasMMWrapper.h"
-#include "ft_utils/cublasINT8MMWrapper.h"
 #include <string>
 #include <vector>
-#include <mutex>
-
-#include "utils.h"
 
 using namespace nvinfer1;
 
-namespace ft = fastertransformer;
 // One of the preferred ways of making TensorRT to be able to see
 // our custom layer requires extending IPluginV2 and IPluginCreator classes.
 // For requirements for overriden functions, check TensorRT API docs.
 
-class MHAPlugin : public IPluginV2DynamicExt 
+class AttnMaskedSoftmaxPlugin : public IPluginV2DynamicExt 
 {
 public:
-    MHAPlugin(const std::string name, bool isCrossAtten);
+    AttnMaskedSoftmaxPlugin(const std::string name, bool isCrossAtten);
 
-    MHAPlugin(const std::string name, const void* data, size_t length);
+    AttnMaskedSoftmaxPlugin(const std::string name, const void* data, size_t length);
 
-    // It doesn't make sense to make MHAPlugin without arguments, so we delete default constructor.
-    MHAPlugin() = delete;
+    // It doesn't make sense to make AttnMaskedSoftmaxPlugin without arguments, so we delete default constructor.
+    AttnMaskedSoftmaxPlugin() = delete;
 
     int getNbOutputs() const noexcept override;
 
@@ -69,7 +61,7 @@ public:
                         cublasContext * cublas_handle,
                         IGpuAllocator * gpu_allocator
                         )noexcept override;
-    int pre_enqueue(cudaStream_t stream) noexcept ;
+
     int enqueue(const PluginTensorDesc* inputDesc,
                 const PluginTensorDesc* outputDesc,
                 const void *const *     inputs,
@@ -119,24 +111,16 @@ private:
     const std::string mLayerName;
     size_t mInputVolume;
     std::string mNamespace;
-    bool isCrossAtten;
-    cublasHandle_t cublas_handle_;
+    cublasHandle_t cublasHandle_;
     IGpuAllocator * gpu_allocator_;
-
-    cublasLtHandle_t cublaslt_handle_;
-
-    ft::cublasAlgoMap *cublas_algo_map;
-    int sm;
-    ft::Allocator<ft::AllocatorType::TRT> *allocator;
-    std::mutex *cublas_wrapper_mutex;
-    ft::cublasMMWrapper *cublas_wrapper;
+    bool isCrossAtten;
 
 };
 
-class MHAPluginCreator : public IPluginCreator
+class AttnMaskedSoftmaxPluginCreator : public IPluginCreator
 {
 public:
-    MHAPluginCreator();
+    AttnMaskedSoftmaxPluginCreator();
 
     const char* getPluginName() const noexcept override;
 

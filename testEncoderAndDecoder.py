@@ -10,8 +10,8 @@ from datetime import datetime as dt
 from cuda import cudart
 import tensorrt as trt
 
-dataFilePath = "/workspace/data/"
-planFilePath   = "/target/"
+dataFilePath = "data/"
+planFilePath   = "./"
 encoderPlanFile  = planFilePath + "encoder.plan"
 encoderScoreFile = planFilePath + "encoderScore.txt"
 decoderPlanFile  = planFilePath + "decoder.plan"
@@ -59,6 +59,37 @@ else:
 for soFile in soFileList:
     ctypes.cdll.LoadLibrary(soFile)
 
+def gen_decoder_mask(q_lens, kv_lens, q_max_len, kv_max_len):
+    batch_size = len(kv_lens)
+    self_mask = []
+    cross_mask = []
+    for itb in range(batch_size):
+        kv_mask = np.zeros((q_max_len, kv_max_len), dtype=np.float32)
+        for itl in range(q_max_len):
+            kv_mask[itl, :kv_lens[itb]] = 1
+        cross_mask.append(np.repeat(kv_mask[np.newaxis, ], 10, 0))
+        
+    for itb in range(batch_size*10):
+        q_mask = np.zeros((q_max_len, q_max_len), dtype=np.float32)
+        for itl in range(q_max_len):
+            q_mask[itl, :min(itl+1, q_lens[itb])] = 1
+        self_mask.append(q_mask[np.newaxis, ])
+        
+    self_mask = np.concatenate(self_mask)
+    cross_mask = np.concatenate(cross_mask)
+    return self_mask, cross_mask
+
+def gen_encoder_mask(q_lens, q_max_len):
+    batch_size = len(q_lens)
+    self_mask = []
+    for itb in range(batch_size):
+        q_mask = np.zeros((q_max_len, q_max_len), dtype=np.float32)
+        for itl in range(q_max_len):
+            q_mask[itl, :q_lens[itb]] = 1
+        self_mask.append(q_mask[np.newaxis, ])
+    self_mask = np.concatenate(self_mask)
+    return self_mask
+
 #-------------------------------------------------------------------------------
 def testEncoder():
     print("Test Encoder Part!")
@@ -89,9 +120,12 @@ def testEncoder():
             batchSize, sequenceLength, _ = speech.shape
             if batchSize > 16 or sequenceLength > 1024:
                 continue
-
+            
+            attn_mask = gen_encoder_mask(((speech_lengths+3)//4).tolist(), (speech.shape[1]-4)//4)
+            # print(speech.shape, speech_lengths)
             context.set_binding_shape(0, speech.shape)
             context.set_binding_shape(1, speech_lengths.shape)
+            context.set_binding_shape(2, attn_mask.shape)
             #for i in range(nInput + nOutput):
             #    print("Input ->" if engine.binding_is_input(i) else "Output->", engine.get_binding_dtype(i), engine.get_binding_shape(i), context.get_binding_shape(i), engine.get_binding_dtype(i), engine.get_binding_name(i))
             #print("Finish all input binding: %s"%context.all_binding_shapes_specified)
@@ -99,6 +133,7 @@ def testEncoder():
             bufferH = []
             bufferH.append( speech.astype(np.float32).reshape(-1) )
             bufferH.append( speech_lengths.astype(np.int32).reshape(-1) )
+            bufferH.append( attn_mask.astype(np.float32).reshape(-1) )
             for i in range(nInput, nInput + nOutput):                
                 bufferH.append( np.empty(context.get_binding_shape(i), dtype=trt.nptype(engine.get_binding_dtype(i))) )
 
@@ -127,9 +162,14 @@ def testEncoder():
 
             indexEncoderOut = engine.get_binding_index('encoder_out')
             indexEncoderOutLens = engine.get_binding_index('encoder_out_lens')
+            # index725 = engine.get_binding_index('725')
+            # index742 = engine.get_binding_index('742')
             
             check0 = check(bufferH[indexEncoderOut],ioData['encoder_out'],True,5e-5)
             check1 = check(bufferH[indexEncoderOutLens],np.sum(ioData['encoder_out_lens'].astype(np.int32),axis=2)[:,0],True)
+            # np.savetxt("tmp.txt", bufferH[index725].reshape(-1))
+            # np.savetxt("tmp1.txt", bufferH[index742].reshape(-1))
+            # exit(0)
 
             string = "%4d,%4d,%8.3f,%9.3e,%9.3e,%9.3e,%9.3e,%9.3e, %s"%(batchSize,
                                                                         sequenceLength,
@@ -180,11 +220,18 @@ def testDecoder():
             if batchSize > 16 or sequenceLength > 256:
                 continue
 
+            self_mask, cross_mask = gen_decoder_mask(hyps_lens_sos.reshape(-1).tolist(), 
+                                            encoder_out_lens.tolist(),
+                                            hyps_pad_sos_eos.shape[2]-1, encoder_out.shape[1])
+            # print(hyps_pad_sos_eos.shape, encoder_out.shape)
+            # print(self_mask.shape, cross_mask.shape)
             context.set_binding_shape(0, encoder_out.shape)
             context.set_binding_shape(1, encoder_out_lens.shape)
             context.set_binding_shape(2, hyps_pad_sos_eos.shape)
             context.set_binding_shape(3, hyps_lens_sos.shape)
             context.set_binding_shape(4, ctc_score.shape)
+            # context.set_binding_shape(5, self_mask.shape)
+            # context.set_binding_shape(6, cross_mask.shape)
             #for i in range(nInput + nOutput):
             #    print("Input ->" if engine.binding_is_input(i) else "Output->", engine.get_binding_dtype(i), engine.get_binding_shape(i), context.get_binding_shape(i), engine.get_binding_dtype(i), engine.get_binding_name(i))
             #print("Finish all input binding: %s"%context.all_binding_shapes_specified)
@@ -194,7 +241,9 @@ def testDecoder():
             bufferH.append( encoder_out_lens.astype(np.int32).reshape(-1) )
             bufferH.append( hyps_pad_sos_eos.astype(np.int32).reshape(-1) )
             bufferH.append( hyps_lens_sos.astype(np.int32).reshape(-1) )        
-            bufferH.append( ctc_score.astype(np.float32).reshape(-1) )
+            bufferH.append( ctc_score.astype(np.float32).reshape(-1) )   
+            # bufferH.append( self_mask.astype(np.float32).reshape(-1) )   
+            # bufferH.append( cross_mask.astype(np.float32).reshape(-1) )
 
             for i in range(nInput, nInput + nOutput):                
                 bufferH.append( np.empty(context.get_binding_shape(i), dtype=trt.nptype(engine.get_binding_dtype(i))) )

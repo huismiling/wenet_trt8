@@ -35,11 +35,11 @@ np.set_printoptions(precision=4, linewidth=200, suppress=True)
 cudart.cudaDeviceSynchronize()
 
 
-planFilePath   = "/target/wenet_plugin/build/"
+planFilePath   = "./"
 soFileList = glob(planFilePath + "*.so")
 
 #-------------------------------------------------------------------------------
-logger = trt.Logger(trt.Logger.ERROR)
+logger = trt.Logger(trt.Logger.VERBOSE)
 trt.init_libnvinfer_plugins(logger, '')
 
 if len(soFileList) > 0:
@@ -62,7 +62,7 @@ ckey = sys.argv[1]      # encoder or decoder
 assert ckey in ["encoder", "decoder"]
 onnxFile = sys.argv[2]
 trtFile = sys.argv[3]
-calibData = np.load("/workspace/data/calibration.npz")
+calibData = np.load("data/calibration.npz")
 
 
 if ckey == "encoder":
@@ -89,10 +89,11 @@ if 1:
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
     profile = builder.create_optimization_profile()
     config = builder.create_builder_config()
-    if ckey == "encoder":
+    if 1 or ckey == "encoder":
         config.flags = 1 << int(trt.BuilderFlag.INT8)
+         
     #     config.int8_calibrator = calibrator.MyCalibrator(npDataList, calibrationCount, inputShapes, cacheFile)
-    config.max_workspace_size = 1 << 50
+    # config.max_workspace_size = 1 << 50
     parser = trt.OnnxParser(network, logger)
     if not os.path.exists(onnxFile):
         print("Failed finding onnx file!")
@@ -112,9 +113,12 @@ if 1:
         profile.set_shape("hyps_pad_sos_eos", (1,10,64), (4,10,64), (16,10,64))
         profile.set_shape("hyps_lens_sos", (1,10), (4,10), (16,10))
         profile.set_shape("ctc_score", (1,10), (4,10), (16,10))
+        profile.set_shape("self_attn_mask", (10,63,63), (40,63,63), (160,63,63))
+        profile.set_shape("cross_attn_mask", (10,63,16), (40,63,64), (160,63,256))
     elif ckey == "encoder":
         profile.set_shape("speech", (1,16,80), (4,64,80), (16,256,80))
         profile.set_shape("speech_lengths", (1,), (4,), (16,))
+        profile.set_shape("speech_lengths_mask", (1,3,3), (4,15,15), (16,63,63))
     config.add_optimization_profile(profile)
 
     engineString = builder.build_serialized_network(network, config)

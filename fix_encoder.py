@@ -9,16 +9,22 @@ def get_quant_nodes(graph):
     for node in graph.nodes:
         if node.op in ["Conv"]:
             quant_nodes.append(node.name)
-        # if node.op == "MatMul" and \
-        #     isinstance(node.inputs[1], gs.Constant):
-        #     quant_nodes.append(node.name)
+        if node.op == "MatMul" and \
+            isinstance(node.inputs[1], gs.Constant):
+            quant_nodes.append(node.name)
 
     for node in graph.nodes:
-        if node.op in ["Mul", "MatMul", "Add", "Transpose", "Reshape"]:
+        if node.op in ["Softmax", ]:
+            print("encoder_quant_exclude_nodes: ", node.name)
             exclude_nodes.append(node.name)
-        # if node.op == "MatMul" and \
-        #     not isinstance(node.inputs[1], gs.Constant):
-        #     exclude_nodes.append(node.name)
+        if node.op == "Add" and \
+            "norm" in node.inputs[1].name:
+            print("encoder_quant_exclude_nodes: ", node.name, " ", node.inputs[1].name)
+            exclude_nodes.append(node.name)
+        if node.op == "Mul" and \
+            "norm" in node.inputs[1].name:
+            print("encoder_quant_exclude_nodes: ", node.name, " ", node.inputs[1].name)
+            exclude_nodes.append(node.name)
 
     with open("encoder_quant_nodes.txt", "w+") as f:
         f.write('\n'.join(quant_nodes))
@@ -26,7 +32,7 @@ def get_quant_nodes(graph):
         f.write('\n'.join(exclude_nodes))
 
 def wenet_encoder():
-    encoder = onnx.load("/workspace/encoder.onnx")
+    encoder = onnx.load("model/encoder.onnx")
     graph =  gs.import_onnx(encoder)
     get_quant_nodes(graph)
     Unsqueeze_29 = None

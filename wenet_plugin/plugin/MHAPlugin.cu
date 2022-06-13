@@ -40,6 +40,53 @@ std::vector<PluginField> MHAPluginCreator::mPluginAttributes;
 
 REGISTER_TENSORRT_PLUGIN(MHAPluginCreator);
 
+namespace fastertransformer {
+template<>
+class Allocator<AllocatorType::TRT>: public IAllocator {
+private:
+    int device_id_;
+    nvinfer1::IGpuAllocator *trt_allocator_;
+    cudaStream_t stream_ = 0;  // initialize as default stream
+    std::unordered_map<std::string, std::pair<void*, size_t>>* pointer_mapping_;
+
+public:
+    Allocator(int device_id): device_id_(device_id)
+    {
+        
+    }
+
+    virtual ~Allocator()
+    {
+    }
+    bool isExist(std::string address) const
+    {
+        return false;
+    }
+    bool isReMalloc(std::string address, size_t size) const
+    {
+        return false;
+    }
+
+    void setStream(cudaStream_t stream){
+    }
+
+    void setTrtAllocator(nvinfer1::IGpuAllocator *trt_allocator)
+    {
+        trt_allocator_ = trt_allocator;
+    }
+
+    void* malloc(size_t size, const bool is_set_zero = true)
+    {
+        void* ptr = trt_allocator_->allocate(size, 32, 0);
+        return ptr;
+    }
+
+    void free(void* ptr) const
+    {
+        trt_allocator_->deallocate(ptr);
+    }
+};
+}
 
 // Helper function for serializing plugin
 template <typename T>
@@ -114,6 +161,25 @@ DimsExprs MHAPlugin::getOutputDimensions(int32_t        outputIndex,
 
 int MHAPlugin::initialize() noexcept
 {
+    // cublas_algo_map = new ft::cublasAlgoMap("igemm_config.in");
+    printf("%s \n", __FUNCTION__);
+
+    sm = ft::getSMVersion();
+
+    allocator = new ft::Allocator<ft::AllocatorType::TRT>(ft::getDevice());
+
+    cublas_wrapper_mutex = new std::mutex();
+
+    cublasLtCreate(&cublaslt_handle_);
+
+    // cublasINT8MMWrapper cublas_wrapper =
+    //     cublasINT8MMWrapper(cublaslt_handle, stream, cublas_algo_map, cublas_wrapper_mutex, use_ORDER_COL32_2R_4R4);
+    // cublas_wrapper = new ft::cublasMMWrapper(cublas_handle_,
+    //                                 cublaslt_handle_,
+    //                                 (cudaStream_t)nullptr,
+    //                                 cublas_algo_map,
+    //                                 cublas_wrapper_mutex,
+    //                                 allocator);
 
     return 0;
 }
@@ -132,6 +198,10 @@ void MHAPlugin::terminate() noexcept
     // delete allocator;
     // printf("%s \n", __FUNCTION__);
     // printf("%s \n", __FUNCTION__);
+    delete cublas_wrapper_mutex;
+    // delete cublas_algo_map;
+    delete allocator;
+    cublasLtDestroy(cublaslt_handle_);
 
 }
 
@@ -157,7 +227,8 @@ void MHAPlugin::attachToContext(cudnnContext * cudnn_handle,
                         )noexcept
 {
     // printf("%s \n", __FUNCTION__);
-    cublasHandle_ = cublas_handle;
+    // printf("gpu_allocator %p \n", gpu_allocator);
+    cublas_handle_ = cublas_handle;
     gpu_allocator_ = gpu_allocator;
 }
 
@@ -172,7 +243,6 @@ int MHAPlugin::pre_enqueue(cudaStream_t stream) noexcept
 template<typename T>
 void dump2Txt(T* src, int N, std::string fname)
 {
-    return ;
     FILE * pFile;
     pFile = fopen(fname.c_str(),"w");
     
@@ -188,48 +258,50 @@ void dump2Txt(T* src, int N, std::string fname)
     delete []dst_cpu;
 }
 
-int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
-                    const PluginTensorDesc* outputDesc,
-                    const void *const *     inputs,
-                    void *const *           outputs,
-                    void *                  workspace,
-                    cudaStream_t            stream) noexcept
+
+template <typename T>
+int mha_forward(const void *const *     inputs          ,
+                void *const *           outputs         ,
+                void *                  workspace       ,
+                int                     batch_size      ,
+                int                     seq_len0        ,
+                int                     d_model         ,
+                int                     seq_len1        ,
+                int                     head_num        ,
+                int                     size_per_head   ,
+                bool                    isCrossAtten    ,
+                ft::cublasMMWrapper *   cublas_wrapper  ,
+                cublasHandle_t          cublas_handle   ,
+                cudaStream_t            stream,
+                const std::string mLayerName)
 {
-    cudaStreamSynchronize(stream);
-    //  input : q, enc_in, enc_lens, qw, qb, kw, kb, vw, vb, lw, lb
-    int status = 0;
-    const int batch_size  = inputDesc[0].dims.d[0];    // B
-    const int seq_len0    = inputDesc[0].dims.d[1];    // T0 for q
-    const int d_model     = inputDesc[0].dims.d[2];    // D
-    const int seq_len1    = isCrossAtten ? inputDesc[1].dims.d[1] : seq_len0;    // T1 for k v
-    const int head_num    = 4 ;
-    const int size_per_head = 64 ;
     int widx = 0;
-    float *query_in              = (float*)(inputs[widx++]);
-    float *enc_in                = (float*)(inputs[widx++]);
-    int   *enc_mask              = (int*)(inputs[widx++]);
-    float *query_weight_kernel   = (float*)(inputs[widx++]);
-    float *query_weight_bias     = (float*)(inputs[widx++]);
-    float *key_weight_kernel     = (float*)(inputs[widx++]);
-    float *key_weight_bias       = (float*)(inputs[widx++]);
-    float *value_weight_kernel   = (float*)(inputs[widx++]);
-    float *value_weight_bias     = (float*)(inputs[widx++]);
-    float *output_weight_kernel  = (float*)(inputs[widx++]);
-    float *output_weight_bias    = (float*)(inputs[widx++]);
-    float *layer_norm_gamma      = (float*)(inputs[widx++]);
-    float *layer_norm_beta       = (float*)(inputs[widx++]);
+    T *query_in              = (T*)(inputs[widx++]);
+    T *enc_in                = (T*)(inputs[widx++]);
+    T *enc_mask              = (T*)(inputs[widx++]);
+    T *query_weight_kernel   = (T*)(inputs[widx++]);
+    T *query_weight_bias     = (T*)(inputs[widx++]);
+    T *key_weight_kernel     = (T*)(inputs[widx++]);
+    T *key_weight_bias       = (T*)(inputs[widx++]);
+    T *value_weight_kernel   = (T*)(inputs[widx++]);
+    T *value_weight_bias     = (T*)(inputs[widx++]);
+    T *output_weight_kernel  = (T*)(inputs[widx++]);
+    T *output_weight_bias    = (T*)(inputs[widx++]);
+    T *layer_norm_gamma      = (T*)(inputs[widx++]);
+    T *layer_norm_beta       = (T*)(inputs[widx++]);
+
     int ws_offset  = 0;
-    float* q_buf   = (float*)workspace + ws_offset; ws_offset += batch_size*seq_len0*d_model;
-    float* q_share = (float*)workspace + ws_offset; ws_offset += batch_size*seq_len0*d_model;
-    float* qk_buf  = (float*)workspace + ws_offset; ws_offset += batch_size*head_num*seq_len0*seq_len1;
-    float* out_buf = (float*)workspace + ws_offset; ws_offset += batch_size*seq_len0*d_model;
-    float* k_buf   = (float*)workspace + ws_offset; ws_offset += batch_size*seq_len1*d_model;
-    float* k_bias  = (float*)workspace + ws_offset; ws_offset += batch_size*seq_len1*d_model;
-    float* v_buf   = (float*)workspace + ws_offset; ws_offset += batch_size*seq_len1*d_model;
-    float* v_bias  = (float*)workspace + ws_offset; ws_offset += batch_size*seq_len1*d_model;
+    T* q_buf   = (T*)workspace + ws_offset; ws_offset += batch_size*seq_len0*d_model;
+    T* q_share = (T*)workspace + ws_offset; ws_offset += batch_size*seq_len0*d_model;
+    T* qk_buf  = (T*)workspace + ws_offset; ws_offset += batch_size*head_num*seq_len0*seq_len1;
+    T* out_buf = (T*)workspace + ws_offset; ws_offset += batch_size*seq_len0*d_model;
+    T* k_buf   = (T*)workspace + ws_offset; ws_offset += batch_size*seq_len1*d_model;
+    T* k_bias  = (T*)workspace + ws_offset; ws_offset += batch_size*seq_len1*d_model;
+    T* v_buf   = (T*)workspace + ws_offset; ws_offset += batch_size*seq_len1*d_model;
+    T* v_bias  = (T*)workspace + ws_offset; ws_offset += batch_size*seq_len1*d_model;
 
     // cudaStreamSynchronize(stream);
-    cublasSetStream(cublasHandle_, stream);
+    // cublas_wrapper->setStream(stream);
 
     invokeGeneralLayerNorm(q_share,     //  float* out,
                         query_in,       //  const float* input,
@@ -240,10 +312,8 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
                         stream,             //  cudaStream_t stream,
                         0                   //  int opt_version
                     );
-    int enc_mask_num = batch_size/10;
     if (! isCrossAtten){     //  self attn
         enc_in = q_share;
-        enc_mask_num = batch_size;
     }
     // printf("debug  inputs %d %d %d, %d %d %d \n", batch_size, seq_len0, d_model, 
     //                 inputDesc[1].dims.d[0], inputDesc[1].dims.d[1], inputDesc[1].dims.d[2]);
@@ -251,7 +321,7 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
     // dump2Txt((float*)(query_in), batch_size*seq_len0*d_model, "dump_trt_input/"+mLayerName+"_query_in.txt");
     // dump2Txt((float*)(q_share), batch_size*seq_len0*d_model, "dump_trt_input/"+mLayerName+"_query_layer_norm.txt");
     // dump2Txt((float*)(enc_in), batch_size*seq_len1*d_model, "dump_trt_input/"+mLayerName+"_enc_in.txt");
-    // dump2Txt((int*)(enc_mask), enc_mask_num, "dump_trt_input/"+mLayerName+"_enc_mask.txt");
+    // dump2Txt((float*)(enc_mask), batch_size*seq_len0*seq_len1, "dump_trt_input/"+mLayerName+"_enc_mask.txt");
     // dump2Txt((float*)(query_weight_kernel), d_model*d_model, "dump_trt_input/"+mLayerName+"_query_kernel.txt");
     // dump2Txt((float*)(query_weight_bias)  , d_model,         "dump_trt_input/"+mLayerName+"_query_bias.txt");
     // dump2Txt((float*)(key_weight_kernel), d_model*d_model, "dump_trt_input/"+mLayerName+"_key_kernel.txt");
@@ -262,38 +332,44 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
     // dump2Txt((float*)(output_weight_bias)  , d_model,         "dump_trt_input/"+mLayerName+"_linear_bias.txt");
     // dump2Txt((float*)(layer_norm_gamma)  , d_model,         "dump_trt_input/"+mLayerName+"_layer_norm_gamma.txt");
     // dump2Txt((float*)(layer_norm_beta)  , d_model,         "dump_trt_input/"+mLayerName+"_layer_norm_beta.txt");
+    int dp=0;
 
     const float alpha = 1.0, beta = 0.0;
-    cublasSgemm(cublasHandle_,
-        CUBLAS_OP_N,
-        CUBLAS_OP_N,
-        d_model,                //  m
-        batch_size*seq_len0,    //  n
-        d_model,                //  k
-        &alpha, query_weight_kernel, d_model,
-        (const float*)(q_share), d_model,
-        &beta, q_buf, d_model
-    );
-    cublasSgemm(cublasHandle_,
-        CUBLAS_OP_N,
-        CUBLAS_OP_N,
-        d_model,                //  m
-        batch_size*seq_len1,    //  n
-        d_model,                //  k
-        &alpha, key_weight_kernel, d_model,
-        (const float*)(enc_in), d_model,
-        &beta, k_buf, d_model
-    );
-    cublasSgemm(cublasHandle_,
-        CUBLAS_OP_N,
-        CUBLAS_OP_N,
-        d_model,                //  m
-        batch_size*seq_len1,    //  n
-        d_model,                //  k
-        &alpha, value_weight_kernel, d_model,
-        (const float*)(enc_in), d_model,
-        &beta, v_buf, d_model
-    );
+    cublas_wrapper->Gemm(CUBLAS_OP_N,
+                        CUBLAS_OP_N,
+                        d_model,
+                        batch_size*seq_len0,
+                        d_model,
+                        query_weight_kernel,
+                        d_model,
+                        (const T*)(q_share),
+                        d_model,
+                        q_buf,
+                        d_model);
+    
+    cublas_wrapper->Gemm(CUBLAS_OP_N,
+                        CUBLAS_OP_N,
+                        d_model,
+                        batch_size*seq_len1,
+                        d_model,
+                        key_weight_kernel,
+                        d_model,
+                        (const T*)(enc_in),
+                        d_model,
+                        k_buf,
+                        d_model);
+
+    cublas_wrapper->Gemm(CUBLAS_OP_N,
+                        CUBLAS_OP_N,
+                        d_model,
+                        batch_size*seq_len1,
+                        d_model,
+                        value_weight_kernel,
+                        d_model,
+                        (const T*)(enc_in),
+                        d_model,
+                        v_buf,
+                        d_model);
     // cudaStreamSynchronize(stream);
     // dump2Txt((float*)(q_share), batch_size*seq_len0*d_model, "dump_trt/"+mLayerName+"_q_in.txt");
     // dump2Txt((float*)(enc_in), batch_size*seq_len1*d_model, "dump_trt/"+mLayerName+"_enc_in.txt");
@@ -318,34 +394,32 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
     // dump2Txt(k_bias, batch_size*seq_len1*d_model, "dump_trt/"+mLayerName+"_k_bias_trans.txt");
     // dump2Txt(v_bias, batch_size*seq_len1*d_model, "dump_trt/"+mLayerName+"_v_bias_trans.txt");
 
-    cublasSgemmStridedBatched(
-            cublasHandle_,
-            CUBLAS_OP_T,
+    cublas_wrapper->stridedBatchedGemm(CUBLAS_OP_T,
             CUBLAS_OP_N,
             seq_len1,               //m,
             seq_len0,               //n,
             size_per_head,          //k,
-            &alpha,
-            k_bias,                     //A,
+            (const void*)k_bias,                     //A,
             size_per_head,              //lda,
             seq_len1*size_per_head,     //strideA,
-            q_share,                     //B,
+            (const void*)q_share,                    //B,
             size_per_head,              //ldb,
             seq_len0*size_per_head,     //strideB,
-            &beta,
-            qk_buf,                 //C,
+            (void*)qk_buf,                 //C,
             seq_len1,               //ldc,
             seq_len0*seq_len1,      //strideC,
-            batch_size*head_num     //batchCount
-        );
+            batch_size*head_num,    //batchCount
+            1.f,                    // alpha
+            0.f                     // beta
+            );
+
     // cudaStreamSynchronize(stream);
     // dump2Txt(qk_buf, batch_size*head_num*seq_len0*seq_len1, "dump_trt/"+mLayerName+"_qk_buf.txt");
     
-    float scalar = 1 / sqrtf(size_per_head * 1.0f);
+    T scalar = 1 / sqrtf(size_per_head * 1.0f);
     invokeMaskedSoftMax(qk_buf,
                         qk_buf,
                         enc_mask,
-                        isCrossAtten,
                         batch_size,
                         seq_len0,
                         seq_len1,
@@ -356,26 +430,24 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
     // cudaStreamSynchronize(stream);
     // dump2Txt(qk_buf, batch_size*head_num*seq_len0*seq_len1, "dump_trt/"+mLayerName+"_softmax.txt");
 
-    cublasSgemmStridedBatched(
-            cublasHandle_,
-            CUBLAS_OP_N,
+    cublas_wrapper->stridedBatchedGemm(CUBLAS_OP_N,
             CUBLAS_OP_N,
             size_per_head,          //m,
             seq_len0,               //n,
             seq_len1,               //k,
-            &alpha,
-            v_bias,                     //A,
+            (const void*)v_bias,                     //A,
             size_per_head,              //lda,
             seq_len1*size_per_head,     //strideA,
-            qk_buf,                     //B,
+            (const void*)qk_buf,                     //B,
             seq_len1,                   //ldb,
             seq_len0*seq_len1,          //strideB,
-            &beta,
-            q_buf,                  //C,
+            (void*)q_buf,                  //C,
             size_per_head,          //ldc,
             seq_len0*size_per_head, //strideC,
-            batch_size*head_num     //batchCount
-        );
+            batch_size*head_num,    //batchCount
+            1.f,                    // alpha
+            0.f                     // beta
+            );
     // cudaStreamSynchronize(stream);
     // dump2Txt(q_buf, batch_size*head_num*seq_len0*size_per_head, "dump_trt/"+mLayerName+"_qkv.txt");
 
@@ -385,22 +457,23 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
     // dump2Txt(out_buf, batch_size*head_num*seq_len0*size_per_head, "dump_trt/"+mLayerName+"_qkv_trans.txt");
     // dump2Txt(output_weight_kernel, d_model*d_model, "dump_trt/"+mLayerName+"_lw.txt");
 
-    cublasSgemm(cublasHandle_,
-        CUBLAS_OP_N,
-        CUBLAS_OP_N,
-        d_model,                //  m
-        batch_size*seq_len0,    //  n
-        d_model,                //  k
-        &alpha, output_weight_kernel, d_model,
-        (const float*)(out_buf), d_model,
-        &beta, (float*)(outputs[0]), d_model
-    );
+    cublas_wrapper->Gemm(CUBLAS_OP_N,
+                        CUBLAS_OP_N,
+                        d_model,
+                        batch_size*seq_len0,
+                        d_model,
+                        output_weight_kernel,
+                        d_model,
+                        (const T*)(out_buf),
+                        d_model,
+                        outputs[0],
+                        d_model);
     // cudaStreamSynchronize(stream);
     // dump2Txt((float*)(outputs[0]), batch_size*head_num*seq_len0*size_per_head, "dump_trt/"+mLayerName+"_out_linear.txt");
     // add_bias_kernel<<<gridq, block, 0, stream>>>(
     //     (float*)(outputs[0]), (float*)(outputs[0]), output_weight_bias, 
     //     batch_size, seq_len0, d_model);
-    invokeAddBiasResidual((float*)(outputs[0]),     //  T* output, 
+    invokeAddBiasResidual((T*)(outputs[0]),     //  T* output, 
                         query_in,                   //  const T* input, 
                         output_weight_bias,         //  const T* bias, 
                         batch_size * seq_len0,       //  const int m, 
@@ -409,7 +482,80 @@ int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
                 );
     // cudaStreamSynchronize(stream);
     // dump2Txt((float*)(outputs[0]), batch_size*head_num*seq_len0*size_per_head, "dump_trt/"+mLayerName+"_out_final.txt");
+    return 0;
+}
 
+int MHAPlugin::enqueue(const PluginTensorDesc*  inputDesc,
+                    const PluginTensorDesc* outputDesc,
+                    const void *const *     inputs,
+                    void *const *           outputs,
+                    void *                  workspace,
+                    cudaStream_t            stream) noexcept
+{
+    cudaStreamSynchronize(stream);
+    cublasSetStream(cublas_handle_, stream);
+    //  input : q, enc_in, enc_lens, qw, qb, kw, kb, vw, vb, lw, lb
+    int status = 0;
+    const int batch_size  = inputDesc[0].dims.d[0];    // B
+    const int seq_len0    = inputDesc[0].dims.d[1];    // T0 for q
+    const int d_model     = inputDesc[0].dims.d[2];    // D
+    const int seq_len1    = isCrossAtten ? inputDesc[1].dims.d[1] : seq_len0;    // T1 for k v
+    const int head_num    = 4 ;
+    const int size_per_head = 64 ;
+    // printf("%s : %d %d %d %d \n", __FUNCTION__, batch_size, seq_len0, d_model, seq_len1);
+    // allocator->setTrtAllocator(gpu_allocator_);
+    cudaStreamSynchronize(stream);
+    ft::cublasMMWrapper cublas_wrapper_ = ft::cublasMMWrapper(cublas_handle_,
+                                    cublaslt_handle_,
+                                    stream,
+                                    cublas_algo_map,
+                                    cublas_wrapper_mutex,
+                                    nullptr);
+    if(inputDesc[0].type == DataType::kFLOAT)
+    {
+        cublas_wrapper_.setFP32GemmConfig();
+        mha_forward<float>(inputs,
+                    outputs,
+                    workspace,
+                    batch_size,
+                    seq_len0,
+                    d_model, 
+                    seq_len1,  
+                    head_num, 
+                    size_per_head,
+                    isCrossAtten,
+                    &cublas_wrapper_,
+                    cublas_handle_,
+                    stream ,
+                    mLayerName
+                );
+    }
+    else if(inputDesc[0].type == DataType::kHALF)
+    {
+        cublas_wrapper_.setFP16GemmConfig();
+        mha_forward<half>(inputs,
+                    outputs,
+                    workspace,
+                    batch_size,
+                    seq_len0,
+                    d_model, 
+                    seq_len1,  
+                    head_num, 
+                    size_per_head,
+                    isCrossAtten,
+                    &cublas_wrapper_,
+                    cublas_handle_,
+                    stream ,
+                    mLayerName
+                );
+    }
+    else if(inputDesc[0].type == DataType::kINT8)
+    {
+        
+    }
+
+
+    
     return status;
 }
 
@@ -444,20 +590,26 @@ bool MHAPlugin::supportsFormatCombination(int32_t               pos,
     // printf("%s \n", __FUNCTION__);
     switch (pos)
     {
-    case 2:
-        return inOut[pos].type == DataType::kINT32;
-        break;
+    // case 2:
+    //     return inOut[pos].type == DataType::kINT32;
+    //     break;
     
     default:
         break;
     }
-    return inOut[pos].type == DataType::kFLOAT;
+    return inOut[pos].format  == TensorFormat::kLINEAR && 
+        inOut[pos].type == DataType::kFLOAT; // || 
 }
 
 
 void MHAPlugin::destroy() noexcept
 {
     // This gets called when the network containing plugin is destroyed
+    // delete cublas_wrapper_mutex;
+    // delete cublas_algo_map;
+    // delete allocator;
+    // cublasLtDestroy(cublaslt_handle_);
+
     // printf("%s \n", __FUNCTION__);
     delete this;
 }
@@ -467,7 +619,7 @@ IPluginV2DynamicExt* MHAPlugin::clone() const noexcept
     // printf("%s \n", __FUNCTION__);
     auto plugin = new MHAPlugin(mLayerName, isCrossAtten);
     plugin->setPluginNamespace(mNamespace.c_str());
-    // printf("clone cublasHandle_ %p \n ", plugin->cublasHandle_);
+    // printf("clone cublas_handle_ %p \n ", plugin->cublas_handle_);
     return plugin;
 }
 

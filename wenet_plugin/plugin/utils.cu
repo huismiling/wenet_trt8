@@ -4,6 +4,260 @@
 #include <vector>
 #include <cassert>
 
+
+#ifdef ENABLE_BF16
+inline __device__ float2 bf1622float2(const __nv_bfloat162 val) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+    float2 f_val;
+    f_val.x = __low2float(val); 
+    f_val.y = __high2float(val);
+    return f_val;
+#else
+    return __bfloat1622float2(val);
+#endif
+}
+
+inline __device__ __nv_bfloat162 bf162bf162(const __nv_bfloat16 val) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+    __nv_bfloat162 val2;
+    val2.x = val;
+    val2.y = val;
+    return val2;
+#else
+    return __bfloat162bfloat162(val);
+#endif
+}
+
+inline __device__ __nv_bfloat162 bf16hadd2(const __nv_bfloat162 x, const __nv_bfloat162 y) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+    float fxl, fxh, fyl, fyh;
+    fxl = __low2float(x);
+    fxh = __high2float(x);
+    fyl = __low2float(y);
+    fyh = __high2float(y);
+    return __floats2bfloat162_rn(fxl + fyl, fxh + fyh);
+#else
+    return __hadd2(x, y);
+#endif
+}
+
+inline __device__ __nv_bfloat16 bf16hadd(const __nv_bfloat16 x, const __nv_bfloat16 y) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+    return __float2bfloat16( __bfloat162float(x) + __bfloat162float(y) );
+#else
+    return __hadd(x, y);
+#endif
+}
+
+inline __device__ __nv_bfloat162 bf16hsub2(const __nv_bfloat162 x, const __nv_bfloat162 y) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+    float fxl, fxh, fyl, fyh;
+    fxl = __low2float(x);
+    fxh = __high2float(x);
+    fyl = __low2float(y);
+    fyh = __high2float(y);
+    return __floats2bfloat162_rn(fxl - fyl, fxh - fyh);
+#else
+    return __hsub2(x, y);
+#endif
+}
+
+inline __device__ __nv_bfloat16 bf16hsub(const __nv_bfloat16 x, const __nv_bfloat16 y) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+    return __float2bfloat16( __bfloat162float(x) - __bfloat162float(y) );
+#else
+    return __hsub(x, y);
+#endif
+}
+
+inline __device__ __nv_bfloat162 bf16hmul2(const __nv_bfloat162 x, const __nv_bfloat162 y) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+    float fxl, fxh, fyl, fyh;
+    fxl = __low2float(x);
+    fxh = __high2float(x);
+    fyl = __low2float(y);
+    fyh = __high2float(y);
+    return __floats2bfloat162_rn(fxl * fyl, fxh * fyh);
+#else
+    return __hmul2(x, y);
+#endif
+}
+
+inline __device__ __nv_bfloat16 bf16hmul(const __nv_bfloat16 x, const __nv_bfloat16 y) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+    return __float2bfloat16( __bfloat162float(x) * __bfloat162float(y) );
+#else 
+    return __hmul(x, y);
+#endif
+}
+
+inline __device__ __nv_bfloat162 bf16hfma2(const __nv_bfloat162 x, const __nv_bfloat162 y, const __nv_bfloat162 z) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+    float fxl, fxh, fyl, fyh, fzl, fzh;
+    fxl = __low2float(x);
+    fxh = __high2float(x);
+    fyl = __low2float(y);
+    fyh = __high2float(y);
+    fzl = __low2float(z);
+    fzh = __high2float(z);
+    return __floats2bfloat162_rn(fxl * fyl + fzl, fxh * fyh + fzh);
+#else
+    return __hfma2(x, y, z);
+#endif
+}
+
+inline __device__ __nv_bfloat162 bf16exp2(const __nv_bfloat162 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+    float fxl, fxh;
+    fxl = __low2float(x);
+    fxh = __high2float(x);;
+    return __floats2bfloat162_rn(expf(fxl), expf(fxh));
+#else
+    return h2exp(x);
+#endif
+}
+#endif // ENABLE_BF16
+
+template<typename T>
+inline __device__ T ldg(const T* val) {
+    return __ldg(val);
+}
+
+#ifdef ENABLE_BF16
+template<>
+inline __device__ __nv_bfloat162 ldg(const __nv_bfloat162* val) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+    return val[0];
+#else
+    return __ldg(val);
+#endif
+}
+
+template<>
+inline __device__ __nv_bfloat16 ldg(const __nv_bfloat16* val) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+    return val[0];
+#else
+    return __ldg(val);
+#endif
+}
+#endif // ENABLE_BF16
+
+// Get type2 from type or vice versa (applied to half and bfloat16)
+template<typename T>
+struct TypeConverter {using Type = half2;}; // keep for generality
+
+template<>
+struct TypeConverter<half2> {using Type = half;};
+
+template<>
+struct TypeConverter<half> {using Type = half2;};
+
+#ifdef ENABLE_BF16
+template<>
+struct TypeConverter<__nv_bfloat162> {using Type = __nv_bfloat16;};
+
+template<>
+struct TypeConverter<__nv_bfloat16> {using Type = __nv_bfloat162;};
+#endif // ENABLE_BF16
+
+// Convert float to type2 (applied to half2 and bfloat162)
+template<typename T>
+inline __device__ T float2type2(float a);
+
+template<>
+inline __device__ half2 float2type2(float a) {
+    return __float2half2_rn(a);
+}
+
+#ifdef ENABLE_BF16
+template<>
+inline __device__ __nv_bfloat162 float2type2(float a) {
+    return __float2bfloat162_rn(a);
+}
+#endif // ENABLE_BF16
+
+// Convert float to type (applied to half and bfloat16)
+template<typename T>
+inline __device__ T float2type(float a);
+
+template<>
+inline __device__ half float2type(float a) {
+    return __float2half_rn(a);
+}
+
+#ifdef ENABLE_BF16
+template<>
+inline __device__ __nv_bfloat16 float2type(float a) {
+    return __float2bfloat16_rn(a);
+}
+#endif // ENABLE_BF16
+
+// Convert type to type2 (applied to half and bfloat16)
+template<typename T_IN, typename T_OUT>
+inline __device__ T_OUT type2type2(T_IN a);
+
+template<>
+inline __device__ half2 type2type2(half a) {
+    return __half2half2(a);
+}
+
+#ifdef ENABLE_BF16
+template<>
+inline __device__ __nv_bfloat162 type2type2(__nv_bfloat16 a) {
+    return bf162bf162(a);
+}
+#endif // ENABLE_BF16
+
+// Defined math operations (bfloat16 fallback to fp32 when it is not supported)
+template<typename T>
+inline __device__ T hadd2(T a, T b) {
+    return __hadd2(a, b);
+}
+
+#ifdef ENABLE_BF16
+template<>
+inline __device__ __nv_bfloat162 hadd2(__nv_bfloat162 a, __nv_bfloat162 b) {
+    return bf16hadd2(a, b);
+}
+#endif // ENABLE_BF16
+
+template<typename T>
+inline __device__ T hsub2(T a, T b) {
+    return __hsub2(a, b);
+}
+
+#ifdef ENABLE_BF16
+template<>
+inline __device__ __nv_bfloat162 hsub2(__nv_bfloat162 a, __nv_bfloat162 b) {
+    return bf16hsub2(a, b);
+}
+#endif // ENABLE_BF16
+
+template<typename T>
+inline __device__ T hmul2(T a, T b) {
+    return __hmul2(a, b);
+}
+
+#ifdef ENABLE_BF16
+template<>
+inline __device__ __nv_bfloat162 hmul2(__nv_bfloat162 a, __nv_bfloat162 b) {
+    return bf16hmul2(a, b);
+}
+#endif // ENABLE_BF16
+
+template<typename T>
+inline __device__ T hexp2(T a) {
+    return h2exp(a);
+}
+
+#ifdef ENABLE_BF16
+template<>
+inline __device__ __nv_bfloat162 hexp2(__nv_bfloat162 a) {
+    return bf16exp2(a);
+}
+#endif // ENABLE_BF16
+
 template<typename T>
 __global__ void transpose_4d_batch_major_mem_q_cache(
     T* v_dst, const T* v_src, const int batch_size, const int seq_length, const int d_model)
@@ -49,11 +303,6 @@ void transpose_3d_102_memory_kernelLauncher(T* dst,
 }
 
 template<typename T>
-inline __device__ T ldg(const T* val) {
-    return __ldg(val);
-}
-
-template<typename T>
 __global__ void add_fusedQKV_bias_transpose_kernel(T* qkv_buf,
                                                    const T* __restrict QKV,
                                                    const T* __restrict qkv_bias,
@@ -89,6 +338,14 @@ __global__ void add_fusedQKV_bias_transpose_kernel(T* qkv_buf,
 template __global__ void add_fusedQKV_bias_transpose_kernel(float* qkv_buf,
                                             const float* __restrict QKV,
                                             const float* __restrict qkv_bias,
+                                            const int batch_size,
+                                            const int seq_len,
+                                            const int head_num,
+                                            const int size_per_head);
+
+template __global__ void add_fusedQKV_bias_transpose_kernel(half* qkv_buf,
+                                            const half* __restrict QKV,
+                                            const half* __restrict qkv_bias,
                                             const int batch_size,
                                             const int seq_len,
                                             const int head_num,
@@ -264,8 +521,7 @@ __inline__ __device__ T blockReduceMax(T val)
 template<int ITEMS_PER_THREAD, typename T, typename T_IN>
 __global__ void softmax_kernel_v4(T* qk_buf_,
                                   const T_IN* qk_buf_src,
-                                  const int* attr_mask,
-                                  const bool isCrossAtten,
+                                  const T* attr_mask,
                                   const int batch_size,
                                   const int head_num,
                                   const int seq_len,
@@ -277,26 +533,21 @@ __global__ void softmax_kernel_v4(T* qk_buf_,
         int qk_offset;
         __shared__ float s_mean, s_max;
         float local_max = -1e20f;
-        int mask_offset = blockIdx.y;
-        if (isCrossAtten)
-            mask_offset = blockIdx.y/10;
-        int enc_len = static_cast<int>(ldg(&attr_mask[mask_offset]));
-        if(!isCrossAtten){
-            enc_len = enc_len>seq_id ? seq_id+1 : enc_len;
-        }
         for (int i = 0; blockDim.x * i + threadIdx.x < kv_len; i++) {
             qk_offset =
                 ((blockIdx.y * head_num + blockIdx.z) * seq_len + seq_id) * kv_len + blockDim.x * i + threadIdx.x;
+            int mask_offset = (blockIdx.y * seq_len + seq_id) * kv_len + blockDim.x * i + threadIdx.x;
 
             float qk = static_cast<float>(qk_buf_src[qk_offset]);
+            float mask_val = static_cast<float>(ldg(&attr_mask[mask_offset]));
 
-
-            float mask_val = (blockDim.x * i + threadIdx.x)<enc_len? 0.f : -10000.0f;
+            mask_val = (1.0f - mask_val) * -10000.0f;
 
             data[i] = qk * static_cast<float>(scalar) + mask_val;
             local_max = fmax(local_max, data[i]);
         }
 
+        // printf("\nthreadIdx.x: %d qk end\n", threadIdx.x);
         float max_val = blockDim.x <= 32 ? warpReduceMax(local_max) : blockReduceMax<float>(local_max);
         if (threadIdx.x == 0) {
             s_max = max_val;
@@ -318,11 +569,13 @@ __global__ void softmax_kernel_v4(T* qk_buf_,
         for (int i = 0; blockDim.x * i + threadIdx.x < kv_len; i++) {
             qk_offset =
                 ((blockIdx.y * head_num + blockIdx.z) * seq_len + seq_id) * kv_len + blockDim.x * i + threadIdx.x;
-            qk_buf_[qk_offset] = (blockDim.x * i + threadIdx.x)<enc_len? (T)(data[i] * s_mean) : 0.f;
+            int mask_offset = (blockIdx.y * seq_len + seq_id) * kv_len + blockDim.x * i + threadIdx.x;
+            float mask_val = static_cast<float>(ldg(&attr_mask[mask_offset]));
+            qk_buf_[qk_offset] = (T)(mask_val) * (T)(data[i] * s_mean);
         }
     }
 }
-/*
+
 template<typename T, int ITEMS_PER_THREAD>
 __global__ void softmax_kernel_v4_half2(
     T* qk_buf_, const T* attr_mask, const int batch_size, const int head_num, const int seq_len, const T scalar)
@@ -376,6 +629,88 @@ __global__ void softmax_kernel_v4_half2(
             qk_buf_half2[qk_offset] = hmul2<T2>(data[i], float2type2<T2>(s_mean));
         }
     }
+}
+
+template<typename T, int NUM>
+__inline__ __device__ T warpReduceSumV2(T* val)
+{
+#pragma unroll
+    for (int i = 0; i < NUM; i++) {
+#pragma unroll
+        for (int mask = 16; mask > 0; mask >>= 1)
+            val[i] += __shfl_xor_sync(FINAL_MASK, val[i], mask, 32);
+    }
+    return (T)(0.0f);
+}
+
+template<typename T, int NUM>
+__inline__ __device__ T blockReduceSumV2(T* val)
+{
+    static __shared__ T shared[NUM][33];
+    int lane = threadIdx.x & 0x1f;
+    int wid = threadIdx.x >> 5;
+
+    warpReduceSumV2<T, NUM>(val);
+
+    if (lane == 0) {
+#pragma unroll
+        for (int i = 0; i < NUM; i++) {
+            shared[i][wid] = val[i];
+        }
+    }
+
+    __syncthreads();
+
+    bool is_mask = threadIdx.x < (blockDim.x / 32.f);
+#pragma unroll
+    for (int i = 0; i < NUM; i++) {
+        val[i] = is_mask ? shared[i][lane] : (T)(0.0f);
+    }
+    warpReduceSumV2<T, NUM>(val);
+    return (T)0.0f;
+}
+
+template<typename T, int NUM>
+__inline__ __device__ T warpReduceMaxV2(T* val)
+{
+#pragma unroll
+    for (int i = 0; i < NUM; i++) {
+#pragma unroll
+        for (int mask = 16; mask > 0; mask >>= 1)
+            val[i] = max(val[i], __shfl_xor_sync(FINAL_MASK, val[i], mask, 32));
+    }
+    return (T)(0.0f);
+}
+
+template<typename T, int NUM>
+__inline__ __device__ T blockReduceMaxV2(T* val)
+{
+    static __shared__ T shared[32][NUM];
+    int lane = threadIdx.x & 0x1f;  // in-warp idx
+    int wid = threadIdx.x >> 5;     // warp idx
+
+    warpReduceMaxV2<T, NUM>(val);  // get maxx in each warp
+
+    if (lane == 0)  // record in-warp maxx by warp Idx
+    {
+#pragma unroll
+        for (int i = 0; i < NUM; i++) {
+            shared[wid][i] = val[i];
+        }
+    }
+
+    __syncthreads();
+
+    // Modify from blockDim.x << 5 to blockDim.x / 32. to prevent
+    // blockDim.x is not divided by 32
+    bool is_mask = threadIdx.x < (blockDim.x / 32.f);
+#pragma unroll
+    for (int i = 0; i < NUM; i++) {
+        val[i] = is_mask ? shared[lane][i] : (T)-1e20f;
+    }
+    warpReduceMaxV2<T, NUM>(val);
+
+    return (T)0.0f;
 }
 
 template<typename T, int ITEMS_PER_THREAD, int NUM>
@@ -495,22 +830,30 @@ __global__ void softmax_kernel_v5_half2(
     }
 }
 
-*/
+
 #define SOFTMAX_KERNEL(ITEMS_PER_THREAD)                                                                               \
     block.x /= ITEMS_PER_THREAD;                                                                                       \
     assert(block.x <= 1024);                                                                                           \
     if (is_half2) {                                                                                                    \
+        if (grid.x % 4 == 0) {                                                                                         \
+            grid.x /= 4;                                                                                               \
+            softmax_kernel_v5_half2<half, ITEMS_PER_THREAD, 4><<<grid, block, 0, stream>>>(                            \
+                (half*)buffer, (const half*)attr_mask, batch_size, head_num, seq_len, (const half)scalar);             \
+        }                                                                                                              \
+        else {                                                                                                         \
+            softmax_kernel_v4_half2<half, ITEMS_PER_THREAD><<<grid, block, 0, stream>>>(                               \
+                (half*)buffer, (const half*)attr_mask, batch_size, head_num, seq_len, (const half)scalar);             \
+        }                                                                                                              \
     }                                                                                                                  \
     else {                                                                                                             \
         softmax_kernel_v4<ITEMS_PER_THREAD, T, T_IN>                                                                   \
-            <<<grid, block, 0, stream>>>(buffer, buffer_src, attr_mask, isCrossAtten, batch_size, head_num, seq_len, kv_len, scalar);        \
+            <<<grid, block, 0, stream>>>(buffer, buffer_src, attr_mask, batch_size, head_num, seq_len, kv_len, scalar);        \
     }
 
 template<typename T, typename T_IN>
 void invokeMaskedSoftMax(T* buffer,
                          const T_IN* buffer_src,
-                         const int* attr_mask,
-                         const bool isCrossAtten,
+                         const T_IN* attr_mask,
                          const int batch_size,
                          const int seq_len,
                          const int kv_len,
@@ -546,13 +889,22 @@ void invokeMaskedSoftMax(T* buffer,
 
 template void invokeMaskedSoftMax(float* buffer,
                          const float* buffer_src,
-                         const int* attr_mask,
-                         const bool isCrossAtten,
+                         const float* attr_mask,
                          const int batch_size,
                          const int seq_len,
                          const int kv_len,
                          const int head_num,
                          const float scalar,
+                         cudaStream_t stream);
+
+template void invokeMaskedSoftMax(half* buffer,
+                         const half* buffer_src,
+                         const half* attr_mask,
+                         const int batch_size,
+                         const int seq_len,
+                         const int kv_len,
+                         const int head_num,
+                         const half scalar,
                          cudaStream_t stream);
 
 template<typename T>
@@ -592,12 +944,12 @@ void invokeTransposeQKV(T* dst,
                 transpose<half2><<<grid, block, 0, stream>>>(
                     (half2*)src, (half2*)dst, batch_size, seq_len, head_num, size_per_head / 2);
             }
-// #ifdef ENABLE_BF16
-//             else {
-//                 transpose<__nv_bfloat162><<<grid, block, 0, stream>>>(
-//                     (__nv_bfloat162*)src, (__nv_bfloat162*)dst, batch_size, seq_len, head_num, size_per_head / 2);
-//             }
-// #endif
+#ifdef ENABLE_BF16
+            else {
+                transpose<__nv_bfloat162><<<grid, block, 0, stream>>>(
+                    (__nv_bfloat162*)src, (__nv_bfloat162*)dst, batch_size, seq_len, head_num, size_per_head / 2);
+            }
+#endif
         }
         else {
             block.x = seq_per_block * size_per_head;
@@ -614,6 +966,14 @@ void invokeTransposeQKV(T* dst,
 template 
 void invokeTransposeQKV(float* dst,
                         float* src,
+                        const int batch_size,
+                        const int seq_len,
+                        const int head_num,
+                        const int size_per_head,
+                        cudaStream_t stream);
+template 
+void invokeTransposeQKV(half* dst,
+                        half* src,
                         const int batch_size,
                         const int seq_len,
                         const int head_num,
@@ -641,6 +1001,7 @@ void invokeAddBiasResidual(T* output, const T* input, const T* bias, const int m
     addBiasResidual<<<grid, block, 0, stream>>>(output, input, bias, m, n);
 }
 template void invokeAddBiasResidual(float* output, const float* input, const float* bias, const int m, const int n, cudaStream_t stream);
+template void invokeAddBiasResidual(half* output, const half* input, const half* bias, const int m, const int n, cudaStream_t stream);
 
 template<typename T>
 __global__ void generalLayerNorm(

@@ -16,8 +16,8 @@ endmacro()
 
 # -------- CONFIGURATION --------
 if(NOT MSVC)
-  set_ifndef(TRT_LIB /usr/lib/x86_64-linux-gnu)
-  set_ifndef(TRT_INCLUDE /usr/include/x86_64-linux-gnu)
+  set_ifndef(TRT_LIB /opt/tensorrt/lib)
+  set_ifndef(TRT_INCLUDE /opt/tensorrt/include)
   set_ifndef(CUDA_INC_DIR /usr/local/cuda/include)
   set_ifndef(CUDA_LIB /usr/local/cuda/lib64)
 endif()
@@ -34,6 +34,9 @@ set_ifndef(CUBLAS_LIB ${_CUBLAS_LIB})
 # -------- BUILDING --------
 
 add_compile_definitions(TENSORRT_BUILD_LIB)
+# Add include directories
+include_directories(${COMMON_HEADER_DIRS} ${CUDA_INC_DIR} ${TRT_INCLUDE} ${CMAKE_SOURCE_DIR}/plugin/)
+add_subdirectory(plugin/ft_utils)
 
 # Define plugin library target
 FILE(GLOB pluginSources plugin/*.cu)
@@ -47,7 +50,7 @@ add_library(mhalugin MODULE
 target_compile_features(mhalugin PUBLIC cxx_std_14 )
 
 # Link TensorRT's nvinfer lib
-target_link_libraries(mhalugin PRIVATE ${NVINFER_LIB} ${CUBLAS_LIB})
+  target_link_libraries(mhalugin PRIVATE ${NVINFER_LIB} ${CUBLAS_LIB} cublasMMWrapper)
 
 # We need to explicitly state that we need all CUDA files
 # to be built with -dc as the member functions will be called by
@@ -126,8 +129,6 @@ endif()
 #   ${PROJECT_SOURCE_DIR}/FasterTransformer
 #   ${CUDA_PATH}/include
 # )
-# Add include directories
-# include_directories(${COMMON_HEADER_DIRS} ${CUDA_INC_DIR} ${TRT_INCLUDE} ${CMAKE_SOURCE_DIR}/plugin/)
 
 # message("-- COMMON_HEADER_DIRS: ${COMMON_HEADER_DIRS}")
 

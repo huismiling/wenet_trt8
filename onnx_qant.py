@@ -11,11 +11,13 @@ class onnxDataReader(CalibrationDataReader):
     def __init__(self,
                  npData,
                  batch_size,
+                 run_times=-1
                  ):
         self.npData = npData
         self.batch_size = batch_size
         self.enum_data_dicts = iter([])
-        self.total_data_num = 10
+        self.run_times = run_times
+        self.total_data_num = 1000
         self.current_idx = 0
 
     def get_next(self):
@@ -41,10 +43,11 @@ class onnxDataReader(CalibrationDataReader):
                     ddict[itk] = itd[itk][itn*self.batch_size : (itn+1)*self.batch_size]
                 data.append(ddict)
         
+        self.total_data_num = min(self.run_times, len(data)) if self.run_times>0 else len(data)
         random.shuffle(data)
         data = data[:self.total_data_num]
 
-        self.enum_data_dicts = iter(self.npData)
+        self.enum_data_dicts = iter(data)
         self.start_of_new_stride = True
         return next(self.enum_data_dicts, None)
 

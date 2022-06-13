@@ -3,6 +3,7 @@
 import onnx
 import onnx_graphsurgeon as gs
 
+import numpy as np
 
 
 
@@ -47,7 +48,7 @@ def replace_layer_norm(self, inputs, outputs, name):
 cross_attn_nodes = [
         {"inps" : ["476",       #   q
                 "214",          #   enc_in
-                "encoder_out_lens",      #   mask
+                "cross_attn_mask",      #   mask
                 "1793", "decoder.decoders.0.src_attn.linear_q.bias",
                 "1797", "decoder.decoders.0.src_attn.linear_k.bias", 
                 "1801", "decoder.decoders.0.src_attn.linear_v.bias",
@@ -58,7 +59,7 @@ cross_attn_nodes = [
         "outs" : ["575"]},
         {"inps" : ["693",       #   q
                 "214",          #   enc_in
-                "encoder_out_lens",      #   mask
+                "cross_attn_mask",      #   mask
                 "1825", "decoder.decoders.1.src_attn.linear_q.bias",
                 "1829", "decoder.decoders.1.src_attn.linear_k.bias", 
                 "1833", "decoder.decoders.1.src_attn.linear_v.bias",
@@ -69,7 +70,7 @@ cross_attn_nodes = [
         "outs" : ["792"]},
         {"inps" : ["910",       #   q
                 "214",          #   enc_in
-                "encoder_out_lens",      #   mask
+                "cross_attn_mask",      #   mask
                 "1857", "decoder.decoders.2.src_attn.linear_q.bias",
                 "1861", "decoder.decoders.2.src_attn.linear_k.bias", 
                 "1865", "decoder.decoders.2.src_attn.linear_v.bias",
@@ -80,7 +81,7 @@ cross_attn_nodes = [
         "outs" : ["1009"]},
         {"inps" : ["1127",       #   q
                 "214",          #   enc_in
-                "encoder_out_lens",      #   mask
+                "cross_attn_mask",      #   mask
                 "1889", "decoder.decoders.3.src_attn.linear_q.bias",
                 "1893", "decoder.decoders.3.src_attn.linear_k.bias", 
                 "1897", "decoder.decoders.3.src_attn.linear_v.bias",
@@ -91,7 +92,7 @@ cross_attn_nodes = [
         "outs" : ["1226"]},
         {"inps" : ["1344",       #   q
                 "214",          #   enc_in
-                "encoder_out_lens",      #   mask
+                "cross_attn_mask",      #   mask
                 "1921", "decoder.decoders.4.src_attn.linear_q.bias",
                 "1925", "decoder.decoders.4.src_attn.linear_k.bias", 
                 "1929", "decoder.decoders.4.src_attn.linear_v.bias",
@@ -102,7 +103,7 @@ cross_attn_nodes = [
         "outs" : ["1443"]},
         {"inps" : ["1561",       #   q
                 "214",          #   enc_in
-                "encoder_out_lens",      #   mask
+                "cross_attn_mask",      #   mask
                 "1953", "decoder.decoders.5.src_attn.linear_q.bias",
                 "1957", "decoder.decoders.5.src_attn.linear_k.bias", 
                 "1961", "decoder.decoders.5.src_attn.linear_v.bias",
@@ -116,7 +117,7 @@ cross_attn_nodes = [
 self_attn_nodes = [
         {"inps" : ["377",       #   q
                 "377",          #   enc_in
-                "hyps_lens_sos",      #   mask
+                "self_attn_mask",      #   mask
                 "1778", "decoder.decoders.0.self_attn.linear_q.bias",
                 "1782", "decoder.decoders.0.self_attn.linear_k.bias", 
                 "1786", "decoder.decoders.0.self_attn.linear_v.bias",
@@ -127,7 +128,7 @@ self_attn_nodes = [
         "outs" : ["476"]},
         {"inps" : ["594",       #   q
                 "594",          #   enc_in
-                "hyps_lens_sos",      #   mask
+                "self_attn_mask",      #   mask
                 "1810", "decoder.decoders.1.self_attn.linear_q.bias",
                 "1814", "decoder.decoders.1.self_attn.linear_k.bias", 
                 "1818", "decoder.decoders.1.self_attn.linear_v.bias",
@@ -138,7 +139,7 @@ self_attn_nodes = [
         "outs" : ["693"]},
         {"inps" : ["811",       #   q
                 "811",          #   enc_in
-                "hyps_lens_sos",      #   mask
+                "self_attn_mask",      #   mask
                 "1842", "decoder.decoders.2.self_attn.linear_q.bias",
                 "1846", "decoder.decoders.2.self_attn.linear_k.bias", 
                 "1850", "decoder.decoders.2.self_attn.linear_v.bias",
@@ -149,7 +150,7 @@ self_attn_nodes = [
         "outs" : ["910"]},
         {"inps" : ["1028",       #   q
                 "1028",          #   enc_in
-                "hyps_lens_sos",      #   mask
+                "self_attn_mask",      #   mask
                 "1874", "decoder.decoders.3.self_attn.linear_q.bias",
                 "1878", "decoder.decoders.3.self_attn.linear_k.bias", 
                 "1882", "decoder.decoders.3.self_attn.linear_v.bias",
@@ -160,7 +161,7 @@ self_attn_nodes = [
         "outs" : ["1127"]},
         {"inps" : ["1245",       #   q
                 "1245",          #   enc_in
-                "hyps_lens_sos",      #   mask
+                "self_attn_mask",      #   mask
                 "1906", "decoder.decoders.4.self_attn.linear_q.bias",
                 "1910", "decoder.decoders.4.self_attn.linear_k.bias", 
                 "1914", "decoder.decoders.4.self_attn.linear_v.bias",
@@ -171,7 +172,7 @@ self_attn_nodes = [
         "outs" : ["1344"]},
         {"inps" : ["1462",       #   q
                 "1462",          #   enc_in
-                "hyps_lens_sos",      #   mask
+                "self_attn_mask",      #   mask
                 "1938", "decoder.decoders.5.self_attn.linear_q.bias",
                 "1942", "decoder.decoders.5.self_attn.linear_k.bias", 
                 "1946", "decoder.decoders.5.self_attn.linear_v.bias",
@@ -223,6 +224,10 @@ layer_norm_nodes = [
 if __name__ == "__main__":
     graph = gs.import_onnx(onnx.load("decoder_fixed.onnx"))
 
+    self_attn_mask = gs.Variable(name="self_attn_mask", shape=["B_Attn", 63, 63], dtype=np.float32)
+    cross_attn_mask = gs.Variable(name="cross_attn_mask", shape=["B_Attn", 63, "T"], dtype=np.float32)
+    graph.inputs.extend([self_attn_mask])
+    graph.inputs.extend([cross_attn_mask])
     tmap = graph.tensors()
     # You can figure out the input and output tensors using Netron. In our case:
     # Inputs: [inp, MIN_VAL, MAX_VAL]
