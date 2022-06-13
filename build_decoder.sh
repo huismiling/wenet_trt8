@@ -1,5 +1,6 @@
 
-
+set -v 
+set -e 
 # python onnxsim.py encoder_new.onnx encoder_sim.onnx 4  \
 #     --dynamic-input-shape --input-shape "speech:16,256,80" "speech_lengths:16" 
 

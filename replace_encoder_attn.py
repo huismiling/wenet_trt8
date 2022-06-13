@@ -472,7 +472,7 @@ if __name__ == "__main__":
     output_mdl = sys.argv[2]
     graph = gs.import_onnx(onnx.load(input_mdl))
 
-    graph.inputs = [graph.inputs[1], graph.inputs[0]]
+#     graph.inputs = [graph.inputs[1], graph.inputs[0]]
     self_attn_mask = gs.Variable(name="speech_lengths_mask", shape=["B", "TM", "TM"], dtype=np.float32)
     graph.inputs.extend([self_attn_mask])
     tmap = graph.tensors()

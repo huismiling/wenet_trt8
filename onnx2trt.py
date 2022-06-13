@@ -89,7 +89,7 @@ if 1:
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
     profile = builder.create_optimization_profile()
     config = builder.create_builder_config()
-    if 1 or ckey == "encoder":
+    if ckey == "encoder":
         config.flags = 1 << int(trt.BuilderFlag.INT8)
          
     #     config.int8_calibrator = calibrator.MyCalibrator(npDataList, calibrationCount, inputShapes, cacheFile)

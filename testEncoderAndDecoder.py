@@ -230,8 +230,8 @@ def testDecoder():
             context.set_binding_shape(2, hyps_pad_sos_eos.shape)
             context.set_binding_shape(3, hyps_lens_sos.shape)
             context.set_binding_shape(4, ctc_score.shape)
-            # context.set_binding_shape(5, self_mask.shape)
-            # context.set_binding_shape(6, cross_mask.shape)
+            context.set_binding_shape(5, self_mask.shape)
+            context.set_binding_shape(6, cross_mask.shape)
             #for i in range(nInput + nOutput):
             #    print("Input ->" if engine.binding_is_input(i) else "Output->", engine.get_binding_dtype(i), engine.get_binding_shape(i), context.get_binding_shape(i), engine.get_binding_dtype(i), engine.get_binding_name(i))
             #print("Finish all input binding: %s"%context.all_binding_shapes_specified)
@@ -242,8 +242,8 @@ def testDecoder():
             bufferH.append( hyps_pad_sos_eos.astype(np.int32).reshape(-1) )
             bufferH.append( hyps_lens_sos.astype(np.int32).reshape(-1) )        
             bufferH.append( ctc_score.astype(np.float32).reshape(-1) )   
-            # bufferH.append( self_mask.astype(np.float32).reshape(-1) )   
-            # bufferH.append( cross_mask.astype(np.float32).reshape(-1) )
+            bufferH.append( self_mask.astype(np.float32).reshape(-1) )   
+            bufferH.append( cross_mask.astype(np.float32).reshape(-1) )
 
             for i in range(nInput, nInput + nOutput):                
                 bufferH.append( np.empty(context.get_binding_shape(i), dtype=trt.nptype(engine.get_binding_dtype(i))) )
