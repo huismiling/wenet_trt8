@@ -175,7 +175,7 @@ if __name__ == "__main__":
     #     ci = gs.Constant("Div2Mul_{}".format(itn), np.array(0.125, dtype=np.float32))
     #     div_node.inputs[1] = ci
 
-    out_nodes = find_masked_softmax_nodes(graph)
+    out_nodes = find_masked_softmax_nodes(graph,self_attn_mask)
     for i,itn in enumerate(out_nodes):
         inputs = itn['inps']
         outputs = itn['outs']
