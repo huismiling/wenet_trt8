@@ -143,7 +143,7 @@ if __name__ == "__main__":
 #     graph.inputs = [graph.inputs[1], graph.inputs[0]]
     self_attn_mask = gs.Variable(name="speech_lengths_mask", shape=["B", "TM", "TM"], dtype=np.float32)
     graph.inputs.extend([self_attn_mask])
-    tmap = graph.tensors()
+    # tmap = graph.tensors()
     # You can figure out the input and output tensors using Netron. In our case:
     # Inputs: [inp, MIN_VAL, MAX_VAL]
     # Outputs: [max_out]
@@ -165,7 +165,6 @@ if __name__ == "__main__":
     for i,itn in enumerate(layer_norm_nodes):
         inputs = itn['inps']
         outputs = itn['outs']
-
         name = "layer_norm_{}".format(i)
         graph.replace_layer_norm(inputs, outputs, name)
 
