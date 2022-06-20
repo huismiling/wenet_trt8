@@ -36,7 +36,7 @@ cudart.cudaDeviceSynchronize()
 
 
 planFilePath   = "./"
-soFileList = glob(planFilePath + "*.so")
+soFileList = ["/target/FasterTransformer_wenet/build/lib/libwenet_plugin.so"]
 
 #-------------------------------------------------------------------------------
 logger = trt.Logger(trt.Logger.VERBOSE)
@@ -89,7 +89,7 @@ if 1:
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
     profile = builder.create_optimization_profile()
     config = builder.create_builder_config()
-    if ckey == "encoder":
+    if 1 or ckey == "encoder":
         config.flags = 1 << int(trt.BuilderFlag.INT8)
          
     #     config.int8_calibrator = calibrator.MyCalibrator(npDataList, calibrationCount, inputShapes, cacheFile)
