@@ -70,7 +70,7 @@ def wenet_encoder():
                     attrs=OrderedDict(to=9))
     graph.nodes.append(Cast1)
 
-    table5000x256 = np.load('./tensor.npy')[0]
+    table5000x256 = np.load('./tensor')[0]
     t4Tensor = Slice_74.inputs[2]
     zero = gs.Constant(name='Constant-0', values=np.array([0]))
     one = gs.Constant(name='Constant-1', values=np.array([1]))
