@@ -66,14 +66,14 @@ def replace_div_2_mul(self, inputs, outputs, name):
                     )
 
 
-def find_masked_softmax_nodes(graph):
+def find_masked_softmax_nodes(graph,speech_lengths_mask):
     out_nodes = []
     for node in graph.nodes:
         if node.op == "Softmax":
             if node.i().op == 'Where' and node.o().op == 'Where' and node.i().i(2).op == 'Div':
                 out_nodes += [{
                     "inps": [node.i().i(2).inputs[0],
-                             "speech_lengths_mask", ],
+                             speech_lengths_mask, ],
                     "outs": [node.o().outputs[0]],
                 }]
     
