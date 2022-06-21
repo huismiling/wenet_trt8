@@ -106,18 +106,32 @@ if 1:
             exit()
         print("Succeeded parsing .onnx file!")
 
+    '''
+      T   TM  Td T2 attn TT2
+    1468 366 366 39 10 366
+    '''
     if ckey == "decoder":
-        profile.set_shape("encoder_out", (1, 16, 256), (4, 64, 256), (16, 256, 256))
+        # profile.set_shape("encoder_out", (1, 16, 256), (4, 64, 256), (16, 256, 256))
+        # profile.set_shape("encoder_out_lens", (1,), (4,), (16,))
+        # profile.set_shape("hyps_pad_sos_eos", (1, 10, 64), (4, 10, 64), (16, 10, 64))
+        # profile.set_shape("hyps_lens_sos", (1, 10), (4, 10), (16, 10))
+        # profile.set_shape("ctc_score", (1, 10), (4, 10), (16, 10))
+        # profile.set_shape("self_attn_mask", (10, 63, 63), (40, 63, 63), (160, 63, 63))
+        # profile.set_shape("cross_attn_mask", (10, 63, 16), (40, 63, 64), (160, 63, 256))
+        profile.set_shape("encoder_out", (1, 1, 256), (4, 800, 256), (16, 1600, 256))
         profile.set_shape("encoder_out_lens", (1,), (4,), (16,))
-        profile.set_shape("hyps_pad_sos_eos", (1, 10, 64), (4, 10, 64), (16, 10, 64))
+        profile.set_shape("hyps_pad_sos_eos", (1, 10, 1), (4, 10, 30), (16, 10, 64))
         profile.set_shape("hyps_lens_sos", (1, 10), (4, 10), (16, 10))
         profile.set_shape("ctc_score", (1, 10), (4, 10), (16, 10))
-        profile.set_shape("self_attn_mask", (10, 63, 63), (40, 63, 63), (160, 63, 63))
-        profile.set_shape("cross_attn_mask", (10, 63, 16), (40, 63, 64), (160, 63, 256))
+        profile.set_shape("self_attn_mask", (10, 1, 1), (40, 30, 30), (160, 63, 63))
+        profile.set_shape("cross_attn_mask", (10, 1, 1), (40, 30, 800), (160, 63, 1600))
     elif ckey == "encoder":
-        profile.set_shape("speech", (1, 16, 80), (4, 64, 80), (16, 256, 80))
+        # profile.set_shape("speech", (1, 16, 80), (4, 64, 80), (16, 256, 80))
+        # profile.set_shape("speech_lengths", (1,), (4,), (16,))
+        # profile.set_shape("speech_lengths_mask", (1, 3, 3), (4, 15, 15), (16, 63, 63))
+        profile.set_shape("speech", (1, 16, 80), (4, 800, 80), (16, 1600, 80))
         profile.set_shape("speech_lengths", (1,), (4,), (16,))
-        profile.set_shape("speech_lengths_mask", (1, 3, 3), (4, 15, 15), (16, 63, 63))
+        profile.set_shape("speech_lengths_mask", (1, 1, 1), (4, 200, 200), (16, 400, 400))
     config.add_optimization_profile(profile)
 
     engineString = builder.build_serialized_network(network, config)

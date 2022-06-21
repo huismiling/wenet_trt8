@@ -183,7 +183,9 @@ if __name__ == "__main__":
         graph.replace_masked_softmax(inputs, outputs, name)
 
 
-    # Remove the now-dangling subgraph.
+    # # Remove the now-dangling subgraph.
+    # graph.inputs[5].shape = ['B_Attn','UNK','UNK']
+    # graph.inputs[6].shape = ['B_Attn','UNK','T']
     graph.cleanup().toposort()
 #     graph.inputs[0].shape=[1, 16, 80]
 #     graph.inputs[1].shape=[16, ]
