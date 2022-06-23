@@ -1,9 +1,15 @@
-# Benchmark on Conformer
+# wenet-Conformer benchmark
+
+## pytorch model
 
 | IO           | CER   |
 |--------------|-------|
-| Old          | 4.61  |
 | UIO(Raw)     | 4.63  |
-| UIO(Shards)  | 4.67  |
+
+## tensorrt model
+
+| IO           | CER  |
+|--------------|------|
+| UIO(Raw)     | x.xx |
 
 
