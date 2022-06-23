@@ -10,17 +10,16 @@ echo '**************************************************'
 echo "mode is $mode\nbatch is $batch"
 echo '**************************************************'
 
-python wenet/bin/recognize.py \
-     --gpu 0 \
-     --mode $mode \
-     --config $repoPath/datasets/train.yaml \
-     --data_type raw \
-     --test_data $repoPath/datasets/data.list \
-     --checkpoint $repoPath/model/final.pt \
-     --beam_size 10 \
-     --batch_size $batch \
-     --penalty 0.0 \
-     --dict $repoPath/datasets/lang_char.txt \
-     --ctc_weight 0.3 \
-     --reverse_weight 0.0 \
-     --result_file $repoPath/log/torch_result.txt
+python wenet/bin/recognize_pt.py \
+      --config $repoPath/datasets/train.yaml \
+      --test_data $repoPath/datasets/data.list \
+      --data_type raw \
+      --gpu 0 \
+      --dict $repoPath/datasets/lang_char.txt \
+      --checkpoint $repoPath/model/final.pt \
+      --json $repoPath/datasets/configs.json \
+      --result_file $repoPath/log/pt_result.txt \
+      --batch_size $batch \
+      --mode $mode
+
+
