@@ -197,17 +197,12 @@ def main():
             char_dict[int(arr[1])] = arr[0]
             vocabulary.append(arr[0])
     eos = sos = len(char_dict) - 1
-    T = 0
-    TM = 0
-    Td = 0
-    T2 = 0
-    Attn = 0
-    TT2 = 0
+
     with torch.no_grad(), open(args.result_file, 'w') as fout:
         for _, batch in enumerate(test_data_loader):
             keys, feats, _, feats_lengths, _ = batch
             feats, feats_lengths = feats.numpy(), feats_lengths.numpy()
-            T = max(feats.shape[1],T)
+
             if args.fp16:
                 feats = feats.astype(np.float16)
             ort_inputs = {
@@ -220,17 +215,8 @@ def main():
             beam_size = beam_log_probs.shape[-1]
             batch_size = beam_log_probs.shape[0]
 
-            attn_mask = gen_encoder_mask(((feats_lengths+3)//4).tolist(), (feats.shape[1]-4)//4)
-            TM = max(TM,attn_mask.shape[1])
             num_processes = min(multiprocessing.cpu_count(), batch_size)
-            # print("*"*30)
-            # print(encoder_out.shape)
-            # print(encoder_out_lens.shape)
-            # print(ctc_log_probs.shape)
-            # print(beam_log_probs.shape)
-            # print(beam_log_probs_idx.shape)
-            # print(attn_mask.shape)
-            # print("*"*30)
+
             if args.mode == 'ctc_greedy_search':
                 if beam_size != 1:
                     log_probs_idx = beam_log_probs_idx[:, :, 0]
@@ -250,7 +236,6 @@ def main():
                 root_dict = {}
                 for i in range(len(batch_len_list)):
                     num_sent = batch_len_list[i]
-                    print(num_sent)
                     batch_log_probs_seq.append(
                         batch_log_probs_seq_list[i][0:num_sent])
                     batch_log_probs_ids.append(
@@ -309,28 +294,10 @@ def main():
                     decoder_ort_session.get_inputs()[2].name: hyps_pad_sos_eos,
                     decoder_ort_session.get_inputs()[3].name: hyps_lens_sos,
                     decoder_ort_session.get_inputs()[-1].name: ctc_score}
-                Td = max(encoder_out.shape[1],Td)
-                T2 = max(hyps_pad_sos_eos.shape[2],T2)
-                self_mask, cross_mask = gen_decoder_mask(hyps_lens_sos.reshape(-1).tolist(), 
-                                encoder_out_lens.tolist(),
-                                hyps_pad_sos_eos.shape[2]-1, encoder_out.shape[1])
-                print("*"*30)
-                # print(encoder_out.shape)
-                # print(encoder_out_lens.shape)
-                # print(hyps_pad_sos_eos.shape)
-                # print(hyps_lens_sos.shape)
-                # print(ctc_score.shape)
-                print(self_mask.shape)
-                print(cross_mask.shape)
-                print("*"*30)
-
-                Attn = max(Attn,self_mask.shape[0])
-                TT2 = max(TT2,cross_mask.shape[2])
-                print(reverse_weight)
                 if reverse_weight > 0:
                     r_hyps_pad_sos_eos_name = decoder_ort_session.get_inputs()[4].name
                     decoder_ort_inputs[r_hyps_pad_sos_eos_name] = r_hyps_pad_sos_eos
-                best_index = decoder_ort_session.run(None, decoder_ort_inputs)[0]
+                _,best_index = decoder_ort_session.run(None, decoder_ort_inputs)
                 best_sents = []
                 k = 0
                 for idx in best_index:
@@ -343,7 +310,6 @@ def main():
                 content = hyps[i]
                 logging.info('{} {}'.format(key, content))
                 fout.write('{} {}\n'.format(key, content))
-        print(T,TM,Td,T2,Attn,TT2) 
 
 if __name__ == '__main__':
     main()
