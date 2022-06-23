@@ -26,7 +26,9 @@ export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 # cp wenet_plugin/build/libmhalugin.so . -s
 
 python fix_decoder.py
-python replace_decoder_attn.py
+python onnx_opt.py decoder decoder_new.onnx decoder_quant.onnx
+python fix_quant_model.py decoder_quant.onnx decoder_quant_fixed.onnx
+python replace_decoder_attn.py decoder_quant_fixed.onnx decoder_replaced.onnx
 python onnx2trt.py decoder decoder_replaced.onnx decoder.plan
 
 

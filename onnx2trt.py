@@ -34,15 +34,16 @@ calibrationCount = 10
 np.set_printoptions(precision=4, linewidth=200, suppress=True)
 cudart.cudaDeviceSynchronize()
 
-planFilePath = "./"
-soFileList = glob(planFilePath + "*.so")
 
-# -------------------------------------------------------------------------------
+planFilePath   = "./"
+soFileList = ["/target/FasterTransformer_wenet/build/lib/libwenet_plugin.so"]
+
+#-------------------------------------------------------------------------------
 logger = trt.Logger(trt.Logger.VERBOSE)
 trt.init_libnvinfer_plugins(logger, '')
 
 if len(soFileList) > 0:
-    print("Find Plugin %s!" % soFileList)
+    print("Find Plugin %s!"%soFileList)
 else:
     print("No Plugin!")
 for soFile in soFileList:
@@ -88,7 +89,7 @@ if 1:
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
     profile = builder.create_optimization_profile()
     config = builder.create_builder_config()
-    if ckey == "encoder":
+    if 1 or ckey == "encoder":
         config.flags = 1 << int(trt.BuilderFlag.INT8)
 
     #     config.int8_calibrator = calibrator.MyCalibrator(npDataList, calibrationCount, inputShapes, cacheFile)
@@ -106,10 +107,6 @@ if 1:
             exit()
         print("Succeeded parsing .onnx file!")
 
-    '''
-      T   TM  Td T2 attn TT2
-    1468 366 366 39 10 366
-    '''
     if ckey == "decoder":
         # profile.set_shape("encoder_out", (1, 16, 256), (4, 64, 256), (16, 256, 256))
         # profile.set_shape("encoder_out_lens", (1,), (4,), (16,))
