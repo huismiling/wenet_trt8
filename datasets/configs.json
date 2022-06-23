@@ -3,7 +3,7 @@
   "cmvn_file": "/home/ubuntu/study/repo/wenet_trt8/datasets/global_cmvn",
   "dataset_conf": {
     "batch_conf": {
-      "batch_size": 16,
+      "batch_size": 1,
       "batch_type": "static"
     },
     "fbank_conf": {

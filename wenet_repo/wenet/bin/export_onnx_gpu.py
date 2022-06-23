@@ -15,6 +15,7 @@
 from __future__ import print_function
 
 import argparse
+import json
 import os
 import sys
 
@@ -565,7 +566,8 @@ if __name__ == '__main__':
         print("Update ctc weight to ", args.ctc_weight)
         configs['model_conf']['ctc_weight'] = args.ctc_weight
     configs["encoder_conf"]["use_dynamic_chunk"] = False
-
+    with open('configs.json','w') as f:
+        json.dump(configs,f)
     model = init_asr_model(configs)
     load_checkpoint(model, args.checkpoint)
     model.eval()
