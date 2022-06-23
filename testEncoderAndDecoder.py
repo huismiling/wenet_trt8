@@ -17,6 +17,7 @@ encoderScoreFile = planFilePath + "encoderScore.txt"
 decoderPlanFile  = planFilePath + "decoder.plan"
 decoderScoreFile = planFilePath + "decoderScore.txt"
 soFileList = glob(planFilePath + "*.so")
+soFileList = ["/target/FasterTransformer_wenet/build/lib/libwenet_plugin.so"]
 
 tableHead = \
 """
@@ -223,6 +224,8 @@ def testDecoder():
             self_mask, cross_mask = gen_decoder_mask(hyps_lens_sos.reshape(-1).tolist(), 
                                             encoder_out_lens.tolist(),
                                             hyps_pad_sos_eos.shape[2]-1, encoder_out.shape[1])
+            # print(hyps_lens_sos)
+            # print(encoder_out_lens)
             # print(hyps_pad_sos_eos.shape, encoder_out.shape)
             # print(self_mask.shape, cross_mask.shape)
             context.set_binding_shape(0, encoder_out.shape)
@@ -288,7 +291,7 @@ def testDecoder():
                                                                         "Good" if check0[1] < 4e-1 and check0[2] < 2e-4 and check1[2] < 1e-1 else "Bad")
             print(string)
             f.write(string + "\n")
-
+            # if sequenceLength==256: exit(0)
             for i in range(nInput + nOutput):                
                 cudart.cudaFree(bufferD[i])
 

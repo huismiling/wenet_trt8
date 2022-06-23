@@ -39,7 +39,7 @@ get_quant_nodes(graph)
 graph.inputs[2].shape[2] = 64
 print(graph.inputs[2])
 
-onnx.save(gs.export_onnx(graph), "decoder_fixed.onnx")
+onnx.save(gs.export_onnx(graph), "decoder_new.onnx")
 
 
 
