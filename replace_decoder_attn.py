@@ -271,8 +271,8 @@ if __name__ == "__main__":
     output_mdl = sys.argv[2]
     graph = gs.import_onnx(onnx.load(input_mdl))
 
-    self_attn_mask = gs.Variable(name="self_attn_mask", shape=["B_Attn", 'Unk', 'Unk'], dtype=np.float32)
-    cross_attn_mask = gs.Variable(name="cross_attn_mask", shape=["B_Attn", 'Unk', "T"], dtype=np.float32)
+    self_attn_mask = gs.Variable(name="self_attn_mask", shape=["B_Attn", 63, 63], dtype=np.float32)
+    cross_attn_mask = gs.Variable(name="cross_attn_mask", shape=["B_Attn", 63, "T"], dtype=np.float32)
     graph.inputs.extend([self_attn_mask])
     graph.inputs.extend([cross_attn_mask])
     tmap = graph.tensors()
@@ -308,7 +308,7 @@ if __name__ == "__main__":
 
     # Remove the now-dangling subgraph.
     graph.cleanup().toposort()
-    graph.inputs[2].shape = ["B",10,"Unk+1"]
+    graph.inputs[2].shape = ["B",10, 64]
 
     # That's it!
     onnx.save(gs.export_onnx(graph), output_mdl)

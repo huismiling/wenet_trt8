@@ -2,7 +2,7 @@
 set -x
 cd ..
 export PYTHONPATH=../../:$PYTHONPATH
-repoPath=/home/ubuntu/study/repo/wenet_trt8
+repoPath=/workspace/wenet_trt8
 
 # pytorch result test
 python tools/compute-wer.py \

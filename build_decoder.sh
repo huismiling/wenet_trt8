@@ -29,7 +29,7 @@ python fix_decoder.py
 python onnx_opt.py decoder decoder_new.onnx decoder_quant.onnx
 python fix_quant_model.py decoder_quant.onnx decoder_quant_fixed.onnx
 python replace_decoder_attn.py decoder_quant_fixed.onnx decoder_replaced.onnx
-python onnx2trt.py decoder decoder_replaced.onnx decoder.plan
+python onnx2trt.py decoder decoder_replaced.onnx decoder.plan 2>&1 | tee build_decoder.log
 
 
 # trtexec --workspace=12000 \

@@ -30,7 +30,7 @@ python fix_encoder.py
 python onnx_opt.py encoder encoder_new.onnx encoder_quant.onnx
 python fix_quant_model.py encoder_quant.onnx encoder_quant_fixed.onnx
 python replace_encoder_attn.py encoder_quant_fixed.onnx encoder_replaced.onnx
-python onnx2trt.py encoder encoder_replaced.onnx encoder.plan
+python onnx2trt.py encoder encoder_replaced.onnx encoder.plan 2>&1 | tee build_encoder.log
 
 # trtexec --workspace=3000 \
 #         --onnx=./encoder_replaced.onnx \

@@ -40,7 +40,7 @@ import copy
 import logging
 import os
 import sys
-
+import json
 import torch
 import yaml
 from torch.utils.data import DataLoader
@@ -53,6 +53,8 @@ from wenet.utils.config import override_config
 import onnxruntime as rt
 import multiprocessing
 import numpy as np
+from pathlib import Path
+import time
 
 try:
     from swig_decoders import map_batch, \
@@ -105,36 +107,6 @@ def get_args():
     print(args)
     return args
 
-def gen_decoder_mask(q_lens, kv_lens, q_max_len, kv_max_len):
-    batch_size = len(kv_lens)
-    self_mask = []
-    cross_mask = []
-    for itb in range(batch_size):
-        kv_mask = np.zeros((q_max_len, kv_max_len), dtype=np.float32)
-        for itl in range(q_max_len):
-            kv_mask[itl, :kv_lens[itb]] = 1
-        cross_mask.append(np.repeat(kv_mask[np.newaxis, ], 10, 0))
-        
-    for itb in range(batch_size*10):
-        q_mask = np.zeros((q_max_len, q_max_len), dtype=np.float32)
-        for itl in range(q_max_len):
-            q_mask[itl, :min(itl+1, q_lens[itb])] = 1
-        self_mask.append(q_mask[np.newaxis, ])
-        
-    self_mask = np.concatenate(self_mask)
-    cross_mask = np.concatenate(cross_mask)
-    return self_mask, cross_mask
-
-def gen_encoder_mask(q_lens, q_max_len):
-    batch_size = len(q_lens)
-    self_mask = []
-    for itb in range(batch_size):
-        q_mask = np.zeros((q_max_len, q_max_len), dtype=np.float32)
-        for itl in range(q_max_len):
-            q_mask[itl, :q_lens[itb]] = 1
-        self_mask.append(q_mask[np.newaxis, ])
-    self_mask = np.concatenate(self_mask)
-    return self_mask
 
 
 
@@ -187,6 +159,8 @@ def main():
     if args.mode == "attention_rescoring":
         decoder_ort_session = rt.InferenceSession(args.decoder_onnx, providers=EP_list)
 
+    time_list = [] # (index,encoder_infer_time,decoder_infer_time),...
+
     # Load dict
     vocabulary = []
     char_dict = {}
@@ -197,9 +171,10 @@ def main():
             char_dict[int(arr[1])] = arr[0]
             vocabulary.append(arr[0])
     eos = sos = len(char_dict) - 1
-
+    dynamic_list = []
     with torch.no_grad(), open(args.result_file, 'w') as fout:
-        for _, batch in enumerate(test_data_loader):
+        for index, batch in enumerate(test_data_loader):
+            timelog = [index,None,None]
             keys, feats, _, feats_lengths, _ = batch
             feats, feats_lengths = feats.numpy(), feats_lengths.numpy()
 
@@ -208,7 +183,12 @@ def main():
             ort_inputs = {
                 encoder_ort_session.get_inputs()[0].name: feats,
                 encoder_ort_session.get_inputs()[1].name: feats_lengths}
+            # encoder infer
+            t0 = time.time_ns()
             ort_outs = encoder_ort_session.run(None, ort_inputs)
+            t1 = time.time_ns()
+            timelog[1] = (t1-t0)/1000/1000
+
             encoder_out, encoder_out_lens, ctc_log_probs, \
                 beam_log_probs, beam_log_probs_idx = ort_outs
 
@@ -257,7 +237,7 @@ def main():
                     hyps = map_batch(hyps, vocabulary, num_processes, False, 0)
             if args.mode == 'attention_rescoring':
                 ctc_score, all_hyps = [], []
-                max_len = 0
+
                 for hyps in score_hyps:
                     cur_len = len(hyps)
                     if len(hyps) < beam_size:
@@ -266,9 +246,9 @@ def main():
                     for hyp in hyps:
                         cur_ctc_score.append(hyp[0])
                         all_hyps.append(list(hyp[1]))
-                        if len(hyp[1]) > max_len:
-                            max_len = len(hyp[1])
+
                     ctc_score.append(cur_ctc_score)
+                max_len = 62
                 if args.fp16:
                     ctc_score = np.array(ctc_score, dtype=np.float16)
                 else:
@@ -297,7 +277,14 @@ def main():
                 if reverse_weight > 0:
                     r_hyps_pad_sos_eos_name = decoder_ort_session.get_inputs()[4].name
                     decoder_ort_inputs[r_hyps_pad_sos_eos_name] = r_hyps_pad_sos_eos
-                _,best_index = decoder_ort_session.run(None, decoder_ort_inputs)
+                
+                # decoder infer
+                t0 = time.time_ns()
+                _, best_index = decoder_ort_session.run(None, decoder_ort_inputs)
+                t1 = time.time_ns()
+                timelog[2] = (t1-t0)/1000/1000
+                time_list.append(timelog)
+
                 best_sents = []
                 k = 0
                 for idx in best_index:
@@ -310,6 +297,8 @@ def main():
                 content = hyps[i]
                 logging.info('{} {}'.format(key, content))
                 fout.write('{} {}\n'.format(key, content))
+    path = Path(args.result_file).parent / 'npys'/ f'onnx_{args.mode}'
+    np.save(path,np.array(time_list))     
 
 if __name__ == '__main__':
     main()
