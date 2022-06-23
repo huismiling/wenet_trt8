@@ -23,4 +23,4 @@ python wenet/bin/recognize.py \
      --dict $repoPath/datasets/lang_char.txt \
      --ctc_weight 0.3 \
      --reverse_weight 0.0 \
-     --result_file $repoPath/log/$mode
+     --result_file $repoPath/log/torch_result.txt

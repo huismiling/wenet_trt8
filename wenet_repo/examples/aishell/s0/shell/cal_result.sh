@@ -1,17 +1,29 @@
 #!/bin/bash
 set -x
 cd ..
-export PYTHONPATH=../../../:$PYTHONPATH
+export PYTHONPATH=../../:$PYTHONPATH
+repoPath=/home/ubuntu/study/repo/wenet_trt8
 
-mode=${1:-attention_rescoring}
-echo '**************************************************'
-echo "mode is $mode"
-echo '**************************************************'
-#      # /home/ubuntu/study/wenet/work_dir/result/$mode/text \
-#      > /home/ubuntu/study/wenet/work_dir/result/$mode/wer
+# pytorch result test
 python tools/compute-wer.py \
      --char=1 \
      --v=1 \
-      /home/ubuntu/study/wenet/work_dir/data/test/text \
-      /home/ubuntu/study/wenet/work_dir/onnx_export/onnx_result.txt \
-      > /home/ubuntu/study/wenet/work_dir/onnx_export/onnx_result.wer
+      $repoPath/datasets/text \
+      $repoPath/log/torch_result.txt \
+      2>&1 | tee $repoPath/log/wer/pytorch.txt
+
+# onnx result test
+python tools/compute-wer.py \
+     --char=1 \
+     --v=1 \
+      $repoPath/datasets/text \
+      $repoPath/log/onnx_result.txt \
+      2>&1 | tee $repoPath/log/wer/onnx.txt
+
+# tensorrt result test
+python tools/compute-wer.py \
+     --char=1 \
+     --v=1 \
+      $repoPath/datasets/text \
+      $repoPath/log/tensorrt_result.txt \
+      2>&1 | tee $repoPath/log/wer/tensorrt.txt

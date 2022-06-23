@@ -1,23 +1,19 @@
 import json
 import tarfile
 from pathlib import Path
+import sys
 
-
-test_tar = Path('./test.tar')
-data_list = Path('./test_data.list')
+path = Path(sys.argv[1])
+test_tar = path / 'datasets' /'test.tar'
+data_list = path / 'datasets' / 'test_data.list'
 data_dir = test_tar.parent / test_tar.stem
 data_dict = {json.loads(i)['key']:json.loads(i) for i in data_list.read_text().splitlines()}
 
-# print(datalist['BAC009S0765W0207.wav'])
-# exit()
-
-
 if not data_dir.exists():
     file = tarfile.open(test_tar,mode = "r")
-    file.extractall(path='./')
+    file.extractall(path=path / 'datasets')
 
-
-with open('./data.list','w+') as f:
+with open(path / 'datasets' / 'data.list','w+') as f:
     for i in data_dir.iterdir():
         if i.is_dir():
             for j in i.iterdir():
