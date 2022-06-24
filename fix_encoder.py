@@ -8,6 +8,8 @@ def get_quant_nodes(graph):
                        #  "MatMul_131", "Transpose_173", "Reshape_177"]
     for node in graph.nodes:
         if node.op in ["Conv"]:
+            if node.attrs['group'] != 1:
+                exclude_nodes.append(node.name)
             quant_nodes.append(node.name)
         if node.op == "MatMul" and \
             isinstance(node.inputs[1], gs.Constant):

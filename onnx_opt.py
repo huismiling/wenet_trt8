@@ -82,7 +82,7 @@ elif ckey == "decoder":
 calibrator = onnxDataReader(NpData, batch_size=1, run_times=200)
 quantize_static(mdl_path, model_quant, calibrator, 
             nodes_to_quantize=quant_nodes, 
-            nodes_to_exclude=None, # exclue_nodes, 
+            nodes_to_exclude=exclue_nodes, # exclue_nodes, 
             # per_channel = True,
             extra_options={
                     "ActivationSymmetric": True,
