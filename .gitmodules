@@ -1,0 +1,3 @@
+[submodule "FasterTransformer_wenet"]
+	path = FasterTransformer_wenet
+	url = ./FasterTransformer_wenet/

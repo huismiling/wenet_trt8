@@ -1,9 +1,9 @@
 
 
-mkdir wenet_plugin/build/
-cd wenet_plugin/build/
-cmake ..
-make -j
+
+cd FasterTransformer_wenet
+sh build_ft.sh
 cd -
-cp wenet_plugin/build/libmhalugin.so . -s
+
+ln -s FasterTransformer_wenet/build/lib/libwenet_plugin.so .
 
