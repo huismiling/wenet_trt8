@@ -16,7 +16,7 @@ python wenet/bin/recognize_engine1.py \
       --data_type raw \
       --gpu 0 \
       --dict $repoPath/datasets/lang_char.txt \
-      --encoder_plan $repoPath/encoder_fix_for_pass.plan \
+      --encoder_plan $repoPath/encoder.plan \
       --decoder_plan $repoPath/decoder.plan \
       --result_file $repoPath/log/tensorrt_result2.txt \
       --batch_size $batch \

@@ -218,17 +218,20 @@ def main():
             feats, feats_lengths = feats.numpy(), feats_lengths.numpy()
             attn_mask = gen_encoder_mask(((feats_lengths + 3) // 4).tolist(), 
             (feats.shape[1] - 4) // 4)
+            print(attn_mask.shape)
+            print(attn_mask.dtype)
 
             
 
             encoder_context.set_binding_shape(0, feats.shape)
             encoder_context.set_binding_shape(1, feats_lengths.shape)
-            # encoder_context.set_binding_shape(2, attn_mask.shape)
+            encoder_context.set_binding_shape(2, attn_mask.shape)
 
 
             bufferH = []
             bufferH.append( feats.astype(np.float32).reshape(-1) )
             bufferH.append( feats_lengths.astype(np.int32).reshape(-1) )
+            bufferH.append( attn_mask.astype(np.float32).reshape(-1) )
 
             for i in range(encoder_nInput, encoder_nInput + encoder_nOutput):
                 bufferH.append( np.empty(encoder_context.get_binding_shape(i), dtype=trt.nptype(encoder.get_binding_dtype(i))) )
