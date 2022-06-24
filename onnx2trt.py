@@ -36,7 +36,7 @@ cudart.cudaDeviceSynchronize()
 
 
 planFilePath   = "./"
-soFileList = ["./libmhalugin.so"]
+soFileList = ["./FasterTransformer_wenet/build/lib/libwenet_plugin.so"]
 
 #-------------------------------------------------------------------------------
 logger = trt.Logger(trt.Logger.VERBOSE)
@@ -58,32 +58,32 @@ for soFile in soFileList:
 # 'hyps_lens_sos-16', 'hyps_lens_sos-64', 'hyps_lens_sos-256', 
 # 'ctc_score-16', 'ctc_score-64', 'ctc_score-256'
 
-ckey = sys.argv[1]  # encoder or decoder
+ckey = sys.argv[1]      # encoder or decoder
 assert ckey in ["encoder", "decoder"]
 onnxFile = sys.argv[2]
 trtFile = sys.argv[3]
 calibData = np.load("data/calibration.npz")
 
+
 if ckey == "encoder":
     npDataList = [
-        {
-            "speech": calibData['speech-16'],
-            "speech_lengths": calibData['speech_lengths-16']
-        },
-        # {
-        #     "speech": calibData['speech-64'],
-        #     "speech_lengths": calibData['speech_lengths-64']
-        # },
-        # {
-        #     "speech": calibData['speech-256'],
-        #     "speech_lengths": calibData['speech_lengths-256']
-        # },
-    ]
-    inputShapes = {"speech": (1, 16, 80), "speech_lengths": (1,)}
+            {
+                "speech": calibData['speech-16'], 
+                "speech_lengths": calibData['speech_lengths-16']
+            },
+            # {
+            #     "speech": calibData['speech-64'], 
+            #     "speech_lengths": calibData['speech_lengths-64']
+            # },
+            # {
+            #     "speech": calibData['speech-256'], 
+            #     "speech_lengths": calibData['speech_lengths-256']
+            # },
+        ]
+    inputShapes = {"speech": (1,16,80), "speech_lengths": (1,)}
 
 # TensorRT 中加载 .onnx 创建 engine ----------------------------------------------
 logger = trt.Logger(trt.Logger.INFO)
-logger.min_severity = trt.Logger.Severity.VERBOSE
 if 1:
     builder = trt.Builder(logger)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
@@ -91,7 +91,7 @@ if 1:
     config = builder.create_builder_config()
     if 1 or ckey == "encoder":
         config.flags = 1 << int(trt.BuilderFlag.INT8)
-
+         
     #     config.int8_calibrator = calibrator.MyCalibrator(npDataList, calibrationCount, inputShapes, cacheFile)
     # config.max_workspace_size = 1 << 50
     parser = trt.OnnxParser(network, logger)

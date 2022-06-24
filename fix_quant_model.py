@@ -20,11 +20,10 @@ if __name__ == "__main__":
     
     for node in graph.nodes:
         if node.op =="Conv":
-            if node.attrs['group']!=1:
-                continue
-            bias_node = node.inputs[2].inputs[0]
-            bias_val = np.array(bias_node.inputs[0].values * bias_node.inputs[1].values, dtype=np.float32)
-            node.inputs[2] = gs.Constant(bias_node.name, bias_val)
+            if node.attrs['group']==1:
+                bias_node = node.inputs[2].inputs[0]
+                bias_val = np.array(bias_node.inputs[0].values * bias_node.inputs[1].values, dtype=np.float32)
+                node.inputs[2] = gs.Constant(bias_node.name, bias_val)
         if node.op =="Gemm" and len(node.inputs) == 3:
             bias_node = node.inputs[2].inputs[0]
             bias_val = np.array(bias_node.inputs[0].values * bias_node.inputs[1].values, dtype=np.float32)
