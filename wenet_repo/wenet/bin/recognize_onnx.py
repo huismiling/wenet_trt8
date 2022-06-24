@@ -161,6 +161,7 @@ def main():
 
     time_list = [] # (index,encoder_infer_time,decoder_infer_time),...
 
+    Flag = True
     # Load dict
     vocabulary = []
     char_dict = {}
@@ -183,6 +184,9 @@ def main():
             ort_inputs = {
                 encoder_ort_session.get_inputs()[0].name: feats,
                 encoder_ort_session.get_inputs()[1].name: feats_lengths}
+            if Flag:
+                for i in range(10):
+                    ort_outs = encoder_ort_session.run(None, ort_inputs)
             # encoder infer
             t0 = time.time_ns()
             ort_outs = encoder_ort_session.run(None, ort_inputs)
@@ -278,6 +282,10 @@ def main():
                     r_hyps_pad_sos_eos_name = decoder_ort_session.get_inputs()[4].name
                     decoder_ort_inputs[r_hyps_pad_sos_eos_name] = r_hyps_pad_sos_eos
                 
+                if Flag:
+                    for i in range(10):
+                        _, best_index = decoder_ort_session.run(None, decoder_ort_inputs)
+                    Flag = False
                 # decoder infer
                 t0 = time.time_ns()
                 _, best_index = decoder_ort_session.run(None, decoder_ort_inputs)

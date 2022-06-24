@@ -18,7 +18,7 @@ python wenet/bin/recognize_engine2.py \
       --dict $repoPath/datasets/lang_char.txt \
       --encoder_plan $repoPath/encoder_fix_for_pass.plan \
       --decoder_plan $repoPath/decoder_fix_for_pass.plan \
-      --result_file $repoPath/log/tensorrt_result2.txt \
+      --result_file $repoPath/log/engine2_result.txt \
       --batch_size $batch \
       --mode $mode \
       --so $repoPath

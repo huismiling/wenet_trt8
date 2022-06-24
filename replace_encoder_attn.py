@@ -4,6 +4,7 @@ import onnx
 import onnx_graphsurgeon as gs
 
 import numpy as np
+from collections import OrderedDict
 
 
 
@@ -189,6 +190,38 @@ if __name__ == "__main__":
     graph.cleanup().toposort()
 #     graph.inputs[0].shape=[1, 16, 80]
 #     graph.inputs[1].shape=[16, ]
+    
+    Relu_38 = Transpose_51 = Concat_59 = Reshape_60 = None
+    for node in graph.nodes:
+        if node.op == 'Relu' and node.name == 'Relu_38':
+            Relu_38 = node
+        if node.op == 'Transpose' and node.name == 'Transpose_51':
+            Transpose_51 = node
+        if node.op == 'Concat' and node.name == 'Concat_59':
+            Concat_59 = node
+        if node.op == 'Reshape' and node.name == 'Reshape_60':
+            Reshape_60 = node
+
+    Concat_59.outputs.clear()
+    ShapeX_in = Transpose_51.outputs[0]
+    ShapeX_out = gs.Variable(name='ShapeX_out',dtype=None,shape=None)
+    ShapeX = gs.Node('Shape','ShapeX',inputs=[ShapeX_in],outputs=[ShapeX_out])
+    graph.nodes.append(ShapeX)
+    SliceX_out = gs.Variable(name='SliceX_out',dtype=None,shape=None)
+    SliceX = gs.Node('Slice','SliceX',inputs=[ShapeX_out,gs.Constant(name='SliceX1',values=np.array([0])),
+                                              gs.Constant(name='SliceX2',values=np.array([-2])),
+                                              gs.Constant(name='SliceX3',values=np.array([0]))],
+                     outputs=[SliceX_out])
+    graph.nodes.append(SliceX)
+    ConcatX_out = gs.Variable(name='ConcatX_out',dtype=None,shape=None)
+    ConcatX = gs.Node('Concat','ConcatX',inputs=[SliceX_out,gs.Constant(name='ConcatX1',values=np.array([4864]))],
+                     outputs=[ConcatX_out],attrs=OrderedDict(axis=0))
+    graph.nodes.append(ConcatX)
+    Reshape_60.inputs = [ShapeX_in,ConcatX_out]
+
+
+    graph.cleanup().toposort()
+
 
     # That's it!
     onnx.save(gs.export_onnx(graph), output_mdl)

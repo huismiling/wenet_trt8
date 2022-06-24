@@ -7,25 +7,29 @@ def get_quant_nodes(graph):
     quant_nodes = []
     exclude_nodes = [] # ["MatMul_178", "MatMul_141", "MatMul_119", "MatMul_125", 
                        #  "MatMul_131", "Transpose_173", "Reshape_177"]
+    i = 0
     for node in graph.nodes:
         if node.op in ["Conv"]:
+            if node.attrs['group']!=1:
+                exclude_nodes.append(node.name)
+                i+=1
             quant_nodes.append(node.name)
         if node.op == "MatMul" and \
             isinstance(node.inputs[1], gs.Constant):
             quant_nodes.append(node.name)
-
-    for node in graph.nodes:
-        if node.op in ["Softmax", ]:
-            print("encoder_quant_exclude_nodes: ", node.name)
-            exclude_nodes.append(node.name)
-        if node.op == "Add" and \
-            "norm" in node.inputs[1].name:
-            print("encoder_quant_exclude_nodes: ", node.name, " ", node.inputs[1].name)
-            exclude_nodes.append(node.name)
-        if node.op == "Mul" and \
-            "norm" in node.inputs[1].name:
-            print("encoder_quant_exclude_nodes: ", node.name, " ", node.inputs[1].name)
-            exclude_nodes.append(node.name)
+    print(f'一共有{i}个group conv')
+    # for node in graph.nodes:
+    #     if node.op in ["Softmax", ]:
+    #         print("encoder_quant_exclude_nodes: ", node.name)
+    #         exclude_nodes.append(node.name)
+    #     if node.op == "Add" and \
+    #         "norm" in node.inputs[1].name:
+    #         print("encoder_quant_exclude_nodes: ", node.name, " ", node.inputs[1].name)
+    #         exclude_nodes.append(node.name)
+    #     if node.op == "Mul" and \
+    #         "norm" in node.inputs[1].name:
+    #         print("encoder_quant_exclude_nodes: ", node.name, " ", node.inputs[1].name)
+    #         exclude_nodes.append(node.name)
 
     with open("encoder_quant_nodes.txt", "w+") as f:
         f.write('\n'.join(quant_nodes))
@@ -36,7 +40,7 @@ def wenet_encoder():
     encoder = onnx.load("model/encoder.onnx")
     graph =  gs.import_onnx(encoder)
     get_quant_nodes(graph)
-    Not_30 = Relu_38 = Transpose_51 = Reshape_60 = Slice_74 = Slice_79 = Slice_84 = None
+    Not_30 = Relu_38 = Transpose_51 = Concat_59 = Reshape_60 = Slice_74 = Slice_79 = Slice_84 = None
     for node in graph.nodes:
         if node.op == 'Not' and node.name == 'Not_30':
             Not_30 = node
@@ -44,6 +48,8 @@ def wenet_encoder():
             Relu_38 = node
         if node.op == 'Transpose' and node.name == 'Transpose_51':
             Transpose_51 = node
+        if node.op == 'Concat' and node.name == 'Concat_59':
+            Concat_59 = node
         if node.op == 'Reshape' and node.name == 'Reshape_60':
             Reshape_60 = node
         if node.op == 'Slice' and node.name == "Slice_74":
@@ -96,22 +102,7 @@ def wenet_encoder():
         graph.nodes.append(sliceN)
         Slice_74.o(i).o().o().o().inputs[1] = sliceV
         trashNode.outputs.clear()
-
-    ShapeX_in = Transpose_51.outputs[0]
-    ShapeX_out = gs.Variable(name='ShapeX_out',dtype=None,shape=None)
-    ShapeX = gs.Node('Shape','ShapeX',inputs=[ShapeX_in],outputs=[ShapeX_out])
-    graph.nodes.append(ShapeX)
-    SliceX_out = gs.Variable(name='SliceX_out',dtype=None,shape=None)
-    SliceX = gs.Node('Slice','SliceX',inputs=[ShapeX_out,gs.Constant(name='SliceX1',values=np.array([0])),
-                                              gs.Constant(name='SliceX2',values=np.array([2])),
-                                              gs.Constant(name='SliceX3',values=np.array([0]))],
-                     outputs=[SliceX_out])
-    graph.nodes.append(SliceX)
-    ConcatX_out = gs.Variable(name='ConcatX_out',dtype=None,shape=None)
-    ConcatX = gs.Node('Concat','ConcatX',inputs=[SliceX_out,gs.Constant(name='ConcatX1',values=np.array([-1]))],
-                     outputs=[ConcatX_out],attrs=OrderedDict(axis=0))
-    graph.nodes.append(ConcatX)
-    Reshape_60.inputs = [ShapeX_in,ConcatX_out]
+    
 
     graph.cleanup().toposort()
     onnx.save(gs.export_onnx(graph), "encoder_new.onnx")
