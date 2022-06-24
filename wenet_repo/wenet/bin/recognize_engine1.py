@@ -218,9 +218,6 @@ def main():
             feats, feats_lengths = feats.numpy(), feats_lengths.numpy()
             attn_mask = gen_encoder_mask(((feats_lengths + 3) // 4).tolist(), 
             (feats.shape[1] - 4) // 4)
-            print(attn_mask.shape)
-            print(attn_mask.dtype)
-
             
 
             encoder_context.set_binding_shape(0, feats.shape)
