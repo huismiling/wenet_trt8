@@ -1,6 +1,5 @@
 #!/bin/bash
 
-repoPath=/workspace/wenet_trt8
 test_data_url=https://oneflow-static.oss-cn-beijing.aliyuncs.com/tripleMu/tensorrt/test.tar
 torch_model_url=https://oneflow-static.oss-cn-beijing.aliyuncs.com/tripleMu/tensorrt/final.pt
 encoder_url=https://oneflow-static.oss-cn-beijing.aliyuncs.com/tripleMu/tensorrt/encoder.onnx
