@@ -4,9 +4,11 @@ set -x
 workspace=24576
 #git submodule update --init --recursive
 git clone https://github.com/huismiling/FasterTransformer_wenet.git FasterTransformer_wenet
-cd ./other_branch
+cd ./other_branch/
 tar -xvf ppq.tar
-cd ./quant_ppq
+cd ./ppq/
+pip3 install -v -e .
+cd ./quant_ppq/
 
 python3 encoder_fix.py
 python3 encoder_quant.py
