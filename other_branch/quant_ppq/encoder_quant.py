@@ -6,6 +6,7 @@ from ppq.api import *
 from ppq.quantization.quantizer import TensorRTQuantizer
 from data import MyDataSet
 from torch.utils.data import DataLoader
+from pathlib import Path
 
 
 DEVICE = 'cuda'
@@ -14,7 +15,7 @@ PLATFORM = TargetPlatform.TRT_INT8
 save = './encoder_quant.onnx'
 MODEL_PATH = './encoder_new.onnx'
 
-dataset = MyDataSet(mode='encoder')
+dataset = MyDataSet(path = Path('../../datasets/npys'),mode='encoder')
 SAMPLES = DataLoader(dataset,
                     batch_size=None,
                     shuffle=True,

@@ -4,7 +4,7 @@ from torch.utils.data import Dataset,DataLoader
 from pathlib import Path
 
 class MyDataSet(Dataset):
-    def __init__(self, path = Path('/home/ubuntu/Data/npys'),mode = 'encoder',device=None):
+    def __init__(self, path = Path('/workspace/wenet_trt8/datasets/npys'),mode = 'encoder',device=None):
         self.device = device if device else torch.device('cuda:0')
         if mode == 'encoder':
             path = path / 'encoder'
