@@ -3,6 +3,11 @@
 set -x
 workspace=24576
 git submodule update --init
+cd FasterTransformer_wenet
+sh build_ft.sh
+cd -
+rm -rf ./libwenet_plugin.so
+ln -s FasterTransformer_wenet/build/lib/libwenet_plugin.so .
 # #git clone https://github.com/huismiling/FasterTransformer_wenet.git FasterTransformer_wenet
 cd ./other_branch/
 tar -xvf ppq.tar
