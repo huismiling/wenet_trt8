@@ -2,8 +2,8 @@
 
 set -x
 workspace=24576
-#git submodule update --init --recursive
-git clone https://github.com/huismiling/FasterTransformer_wenet.git FasterTransformer_wenet
+git submodule update --init
+#git clone https://github.com/huismiling/FasterTransformer_wenet.git FasterTransformer_wenet
 cd ./other_branch/
 tar -xvf ppq.tar
 cd ./ppq/
