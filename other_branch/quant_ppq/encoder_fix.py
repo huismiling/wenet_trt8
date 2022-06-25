@@ -81,7 +81,7 @@ SliceX = gs.Node('Slice', 'SliceX', inputs=[ShapeX_out, gs.Constant(name='SliceX
                  outputs=[SliceX_out])
 graph.nodes.append(SliceX)
 ConcatX_out = gs.Variable(name='ConcatX_out', dtype=None, shape=None)
-ConcatX = gs.Node('Concat', 'ConcatX', inputs=[SliceX_out, gs.Constant(name='ConcatX1', values=np.array([-1]))],
+ConcatX = gs.Node('Concat', 'ConcatX', inputs=[SliceX_out, gs.Constant(name='ConcatX1', values=np.array([4864]))],
                   outputs=[ConcatX_out], attrs=OrderedDict(axis=0))
 graph.nodes.append(ConcatX)
 Reshape_60.inputs = [ShapeX_in, ConcatX_out]
