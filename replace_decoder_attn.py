@@ -308,6 +308,7 @@ if __name__ == "__main__":
 
     # Remove the now-dangling subgraph.
     graph.cleanup().toposort()
+    graph.inputs[2].shape = ["B",10, 64]
 
     # That's it!
     onnx.save(gs.export_onnx(graph), output_mdl)

@@ -78,7 +78,9 @@ elif ckey == "decoder":
         quant_nodes = [it.strip() for it in f.readlines()]
     with open("decoder_quant_exclude_nodes.txt") as f:
         exclue_nodes = [it.strip() for it in f.readlines()]
-
+print('*'*30)
+print(len(exclue_nodes))
+print('*'*30)
 calibrator = onnxDataReader(NpData, batch_size=1, run_times=200)
 quantize_static(mdl_path, model_quant, calibrator, 
             nodes_to_quantize=quant_nodes, 

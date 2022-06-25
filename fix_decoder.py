@@ -15,18 +15,18 @@ def get_quant_nodes(graph):
         #     isinstance(node.inputs[1], gs.Constant):
         #     quant_nodes.append(node.name)
 
-    for node in graph.nodes:
-        if node.op in ["Softmax", ]:
-            print("decoder_quant_exclude_nodes: ", node.name)
-            exclude_nodes.append(node.name)
-        if node.op == "Add" and \
-            "norm" in node.inputs[1].name:
-            print("decoder_quant_exclude_nodes: ", node.name, " ", node.inputs[1].name)
-            exclude_nodes.append(node.name)
-        if node.op == "Mul" and \
-            "norm" in node.inputs[1].name:
-            print("encoder_quant_exclude_nodes: ", node.name, " ", node.inputs[1].name)
-            exclude_nodes.append(node.name)
+    # for node in graph.nodes:
+    #     if node.op in ["Softmax", ]:
+    #         print("decoder_quant_exclude_nodes: ", node.name)
+    #         exclude_nodes.append(node.name)
+    #     if node.op == "Add" and \
+    #         "norm" in node.inputs[1].name:
+    #         print("decoder_quant_exclude_nodes: ", node.name, " ", node.inputs[1].name)
+    #         exclude_nodes.append(node.name)
+    #     if node.op == "Mul" and \
+    #         "norm" in node.inputs[1].name:
+    #         print("encoder_quant_exclude_nodes: ", node.name, " ", node.inputs[1].name)
+    #         exclude_nodes.append(node.name)
 
     with open("decoder_quant_nodes.txt", "w+") as f:
         f.write('\n'.join(quant_nodes))
