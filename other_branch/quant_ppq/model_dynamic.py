@@ -32,7 +32,7 @@ for item in model_pb.output:
 
 
 
-save = f'./{flag}_quant.onnx'
+save = f'./{flag}_quant.onnx' if flag == 'decoder' else f'./{flag}_new.onnx'
 
 model = onnx.load(save)
 
