@@ -1,6 +1,8 @@
 
 
 
+git submodule update --init
+
 cd FasterTransformer_wenet
 sh build_ft.sh
 cd -
