@@ -7,6 +7,8 @@ git clone https://github.com/huismiling/FasterTransformer_wenet.git FasterTransf
 cd ./other_branch/
 tar -xvf ppq.tar
 cd ./ppq/
+apt install ninja-build
+pip3 install -r requirements.txt
 pip3 install -v -e .
 cd ./quant_ppq/
 
