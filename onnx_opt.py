@@ -10,15 +10,15 @@ ckey = sys.argv[1]      # encoder or decoder
 assert ckey in ["encoder", "decoder"]
 mdl_path = sys.argv[2]
 model_quant = sys.argv[3]
-sess_options = rt.SessionOptions()
+# sess_options = rt.SessionOptions()
 
-# Set graph optimization level
-sess_options.graph_optimization_level = rt.GraphOptimizationLevel.ORT_ENABLE_BASIC
+# # Set graph optimization level
+# sess_options.graph_optimization_level = rt.GraphOptimizationLevel.ORT_ENABLE_BASIC
 
-# To enable model serialization after graph optimization set this
-# sess_options.optimized_model_filepath = opt_path
+# # To enable model serialization after graph optimization set this
+# # sess_options.optimized_model_filepath = opt_path
 
-session = rt.InferenceSession(mdl_path, sess_options, providers=['CPUExecutionProvider'])
+# session = rt.InferenceSession(mdl_path, sess_options, providers=['CPUExecutionProvider'])
 
 
 
