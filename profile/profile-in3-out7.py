@@ -10,7 +10,7 @@ from datetime import datetime as dt
 from cuda import cudart
 import tensorrt as trt
 
-dataFilePath = "../datasets/data/"
+dataFilePath = "../datasets/ort_quant_data/"
 planFilePath   = "../"
 encoderPlanFile  = planFilePath + "encoder.plan"
 encoderScoreFile = planFilePath + "log/encoderScore.txt"

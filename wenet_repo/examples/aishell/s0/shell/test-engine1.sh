@@ -1,6 +1,7 @@
 #!/bin/bash
 cd ..
 export PYTHONPATH=../../:$PYTHONPATH
+# export repoPath=/workspace/wenet_trt8
 
 batch=${1:-1}
 mode=${2:-attention_rescoring}
