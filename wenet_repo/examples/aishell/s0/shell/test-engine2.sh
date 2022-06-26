@@ -1,10 +1,10 @@
 #!/bin/bash
 cd ..
 export PYTHONPATH=../../:$PYTHONPATH
+# export repoPath=/workspace/wenet_trt8
 
 batch=${1:-1}
 mode=${2:-attention_rescoring}
-repoPath=/workspace/wenet_trt8
 
 echo '**************************************************'
 echo "mode is $mode\nbatch is $batch"
@@ -22,3 +22,15 @@ python wenet/bin/recognize_engine2.py \
       --batch_size $batch \
       --mode $mode \
       --so $repoPath
+
+python tools/compute-wer.py \
+     --char=1 \
+     --v=1 \
+      $repoPath/datasets/text \
+      $repoPath/log/engine2_result.txt \
+      2>&1 | tee $repoPath/log/wer/engine2.txt
+
+python wenet/bin/compute-speed.py \
+      $repoPath/log/npys \
+      engine2 \
+      $mode

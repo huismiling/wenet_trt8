@@ -4,7 +4,6 @@ export PYTHONPATH=../../:$PYTHONPATH
 
 batch=${1:-1}
 mode=${2:-attention_rescoring}
-repoPath=/workspace/wenet_trt8
 
 echo '**************************************************'
 echo "mode is $mode\nbatch is $batch"

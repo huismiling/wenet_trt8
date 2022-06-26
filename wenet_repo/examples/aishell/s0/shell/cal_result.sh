@@ -3,7 +3,6 @@ set -x
 cd ..
 export PYTHONPATH=../../:$PYTHONPATH
 mode=${1:-attention_rescoring}
-repoPath=/workspace/wenet_trt8
 
 # # pytorch result test
 # python tools/compute-wer.py \

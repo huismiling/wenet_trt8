@@ -1,5 +1,5 @@
 
 export repoPath=$PWD
 
-mkdir log/
-mkdir log/npys/
+mkdir -p ./log/
+mkdir -p ./log/npys/
