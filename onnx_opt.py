@@ -34,7 +34,7 @@ session = rt.InferenceSession(mdl_path, sess_options, providers=['CPUExecutionPr
 # 'hyps_lens_sos-16', 'hyps_lens_sos-64', 'hyps_lens_sos-256', 
 # 'ctc_score-16', 'ctc_score-64', 'ctc_score-256'
 
-calibData = np.load("./data/calibration.npz")
+calibData = np.load("./datasets/ort_quant_data/calibration.npz")
 
 if ckey == "encoder":
     NpData = [
