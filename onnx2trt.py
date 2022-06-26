@@ -62,28 +62,29 @@ ckey = sys.argv[1]      # encoder or decoder
 assert ckey in ["encoder", "decoder"]
 onnxFile = sys.argv[2]
 trtFile = sys.argv[3]
-calibData = np.load("data/calibration.npz")
+# calibData = np.load("data/calibration.npz")
 
 
-if ckey == "encoder":
-    npDataList = [
-            {
-                "speech": calibData['speech-16'], 
-                "speech_lengths": calibData['speech_lengths-16']
-            },
-            # {
-            #     "speech": calibData['speech-64'], 
-            #     "speech_lengths": calibData['speech_lengths-64']
-            # },
-            # {
-            #     "speech": calibData['speech-256'], 
-            #     "speech_lengths": calibData['speech_lengths-256']
-            # },
-        ]
-    inputShapes = {"speech": (1,16,80), "speech_lengths": (1,)}
+# if ckey == "encoder":
+#     npDataList = [
+#             {
+#                 "speech": calibData['speech-16'], 
+#                 "speech_lengths": calibData['speech_lengths-16']
+#             },
+#             # {
+#             #     "speech": calibData['speech-64'], 
+#             #     "speech_lengths": calibData['speech_lengths-64']
+#             # },
+#             # {
+#             #     "speech": calibData['speech-256'], 
+#             #     "speech_lengths": calibData['speech_lengths-256']
+#             # },
+#         ]
+#     inputShapes = {"speech": (1,16,80), "speech_lengths": (1,)}
 
 # TensorRT 中加载 .onnx 创建 engine ----------------------------------------------
 logger = trt.Logger(trt.Logger.INFO)
+logger.min_severity = trt.Logger.Severity.VERBOSE
 if 1:
     builder = trt.Builder(logger)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
