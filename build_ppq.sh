@@ -19,7 +19,7 @@ pip3 install -v -e .
 cd ../quant_ppq/
 
 python3 encoder_fix.py
-python3 encoder_quant.py # no quant for encoder
+# python3 encoder_quant.py # no quant for encoder
 python3 model_dynamic.py encoder
 python3 replace_encoder_ln.py
 
