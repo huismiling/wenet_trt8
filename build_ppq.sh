@@ -19,7 +19,7 @@ pip3 install -v -e .
 cd ../quant_ppq/
 
 python3 encoder_fix.py
-# python3 encoder_quant.py # no quant for encoder
+python3 encoder_quant.py # no quant for encoder
 python3 model_dynamic.py encoder
 python3 replace_encoder_ln.py
 
@@ -45,3 +45,8 @@ trtexec --onnx=./decoder_replace.onnx --saveEngine=./decoder.plan \
         --plugins=./libwenet_plugin.so --int8 \
         --workspace=$workspace --verbose 2>&1 | tee ./log/decoder_build.log
 
+# trtexec --onnx=./encoder_quant_dynamic.onnx --saveEngine=./encoder.plan \
+#         --minShapes=speech:1x1x80,speech_lengths:1 \
+#         --optShapes=speech:4x750x80,speech_lengths:4 \
+#         --maxShapes=speech:16x1500x80,speech_lengths:16 \
+#         --workspace=24576 --verbose 2>&1 | tee ./log.log
