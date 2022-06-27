@@ -8,6 +8,7 @@
 优化效果：
 * 原始ONNX模型在数据集AiShell上，测试结果WER：4.6%，耗时：Encoder 18.40ms，Decoder 20.84ms。
 * 使用ORT量化后，模型测试结果WER：6.06%，耗时：Encoder 7.34ms，Decoder 3.32ms。数据集效果下降1.46%，而Encoder加速2.5倍，Decoder加速6.3倍。
+* 使用PPQ量化后，模型测试结果WER：5.71%，耗时：Encoder 12.14ms，Decoder 2.68ms。数据集效果下降1.11%，而Encoder加速1.5倍，Decoder加速7.7倍。
 
 
 Docker运行方法：
