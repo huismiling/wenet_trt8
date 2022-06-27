@@ -10,11 +10,11 @@ rm -rf ./libwenet_plugin.so
 ln -s FasterTransformer_wenet/build/lib/libwenet_plugin.so .
 # #git clone https://github.com/huismiling/FasterTransformer_wenet.git FasterTransformer_wenet
 cd ./other_branch/
-tar -xvf ppq.tar
+#tar -xvf ppq.tar
 cd ./ppq/
-apt install ninja-build
-pip3 install -r requirements.txt
-pip3 install -v -e .
+#apt install ninja-build
+#pip3 install -r requirements.txt
+#pip3 install -v -e .
 
 cd ../quant_ppq/
 
@@ -35,7 +35,7 @@ trtexec --onnx=./encoder_replace.onnx --saveEngine=./encoder.plan \
         --minShapes=speech:1x1x80,speech_lengths:1,speech_lengths_mask:1x40x40 \
         --optShapes=speech:4x750x80,speech_lengths:4,speech_lengths_mask:4x220x220 \
         --maxShapes=speech:16x1500x80,speech_lengths:16,speech_lengths_mask:16x400x400 \
-        --plugins=./libwenet_plugin.so \
+        --plugins=./libwenet_plugin.so --int8 \
         --workspace=$workspace --verbose 2>&1 | tee ./log/encoder_build.log
 
 trtexec --onnx=./decoder_replace.onnx --saveEngine=./decoder.plan \
