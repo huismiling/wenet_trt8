@@ -198,19 +198,83 @@ ppq quant 是我们使用 [PPQ](https://github.com/openppl-public/ppq) 提供的
 ## Bug报告（可选）
 
 
+
+
 - Environment
   - TensorRT 8.4 GA
   - CUDA11.7 CUDNN 8.4.1
   - nvcr.io/nvidia/tensorrt:22.05-py3
   - 510.47.03
 - Reproduction Steps
-  - Provide detailed reproduction steps for the issue here, including any commands run on the command line.
+  - bug 1:
+  
+    ``` shell
+    # download onnx
+    wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/tripleMu/bug_report/encoder_group_conv_quant.onnx
+    # build engine will show group conv201 error
+    trtexec --onnx=./encoder_group_conv_quant.onnx --saveEngine=./encoder.plan \
+            --minShapes=speech:1x1x80,speech_lengths:1 \
+            --optShapes=speech:4x750x80,speech_lengths:4 \
+            --maxShapes=speech:16x1500x80,speech_lengths:16 \
+            --workspace=8192 --int8 --verbose 2>&1 | tee ./log.log
+    # log
+    [06/27/2022-14:12:39] [E] Error[10]: [optimizer.cpp::computeCosts::3628] Error Code 10: Internal Error (Could not find any implementation for node 3161 + PPQ_Operation_102 + (Unnamed Layer* 1958) [Shuffle] + Conv_201 + PWN(Sigmoid_202, Mul_203).)
+    [06/27/2022-14:12:39] [E] Error[2]: [builder.cpp::buildSerializedNetwork::636] Error Code 2: Internal Error (Assertion engine != nullptr failed. )
+    ```
+  
+  - bug 2:
+  
+    ``` shell
+    # download onnx
+    wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/tripleMu/bug_report/encoder_replaced_flatten.onnx
+    # build plugin
+    sh build_plugin.sh
+    # build engine will show matmul61 error
+    trtexec --onnx=./encoder_replaced_flatten.onnx --saveEngine=./encoder.plan \
+            --minShapes=speech:1x1x80,speech_lengths:1,speech_lengths_mask:1x40x40 \
+            --optShapes=speech:4x750x80,speech_lengths:4,speech_lengths_mask:4x220x220 \
+            --maxShapes=speech:16x1500x80,speech_lengths:16,speech_lengths_mask:16x400x400 \
+            --plugins=./libwenet_plugin.so --int8 \
+            --workspace=24576 --verbose 2>&1 | tee ./log/encoder_build.log
+    # log
+    [06/27/2022-06:42:35] [E] Error[2]: [qdqGraphOptimizer.cpp::reportWeightlessTwoInputConvolutionAsError::230] Error Code 2: Internal Error (MatMul_61: Could not fuse 2nd input (kernel weights) of CONVOLUTION)
+    [06/27/2022-06:42:35] [E] Error[2]: [builder.cpp::buildSerializedNetwork::636] Error Code 2: Internal Error (Assertion engine != nullptr failed. )
+    ```
+  
+  - bug 3: 
+  
+    ``` shell
+    # download onnx
+    wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/tripleMu/bug_report/encoder_quant_pwn_fusion.onnx
+    # build engine will show group conv213 error
+    trtexec --onnx=./encoder_quant_pwn_fusion.onnx --saveEngine=./encoder.plan \
+            --minShapes=speech:1x1x80,speech_lengths:1 \
+            --optShapes=speech:4x750x80,speech_lengths:4 \
+            --maxShapes=speech:16x1500x80,speech_lengths:16 \
+            --workspace=8192 --int8 --verbose 2>&1 | tee ./log.log
+    # log
+    [06/27/2022-14:56:04] [E] Error[10]: [optimizer.cpp::computeCosts::3628] Error Code 10: Internal Error (Could not find any implementation for node onnx::Conv_3304 + PPQ_Operation_58 + (Unnamed Layer* 2015) [Shuffle] + Conv_213 + PWN(Sigmoid_214, Mul_215).)
+    [06/27/2022-14:56:04] [E] Error[2]: [builder.cpp::buildSerializedNetwork::636] Error Code 2: Internal Error (Assertion engine != nullptr failed. )
+    ```
+  
+    
+  
+  - bug 4: (8.4.1.4 bug, have been fixed)
 - Expected Behavior
-  - Provide a brief summary of the expected behavior of the software. Provide output files or examples if possible.
+  - 1: group conv 应该可以支持 int8 量化（特殊形状的 kernel 也应该支持）
+  - 2: torch.view 换成 flatten 导出的 onnx Reshape -1 位置应该是固定值，应该可以支持 shape 推导
+  - 3: ppq 量化后的 conv 应该可以正常融合
+  - 4: TRT 8.4.1.4 发现的 bug，TRT8.4.1.5 GA 已经修复了
 - Actual Behavior
-  - Describe the actual behavior of the software and how it deviates from the expected behavior. Provide output files or examples if possible.
+  
+  - 1: group conv 量化不支持或特殊形状 kernel 不支持
+  - 2: MatMul_61 节点因为 reshape -1 的操作无法是别是固定 shape 的 weights
+  - 3: 量化后的 conv213 不支持融合
 - Additional Notes
   - Provide any additional context here you think might be useful for the TensorRT team to help debug this issue (such as experiments done, potential things to investigate).
+
+
+
 
 ## 经验与体会（可选）
 
