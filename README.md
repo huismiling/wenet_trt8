@@ -116,7 +116,7 @@ transformer中的attention结构，本可以用一个大算子来实现，但是
       
       
       
-   4. 针对大矩阵和固定矩阵乘法计算连接 Slice 的情况对固定的运算进行提前计算，减少了运行时多与的计算。
+   4. 针对大矩阵和固定矩阵乘法计算连接 Slice 的情况对固定的运算进行提前计算，减少了运行时额外的计算。
       <img src="https://user-images.githubusercontent.com/92794867/175815950-202b41e9-7c51-418e-afe0-b5402e948868.png" height="300px" />
       <img src="https://user-images.githubusercontent.com/92794867/175857282-273b0fa0-02ca-4f9d-b742-dd150539e8e2.png" height="300px" />
       
