@@ -8,6 +8,7 @@
 优化效果：
 * 原始ONNX模型在数据集AiShell上，测试结果WER：4.6%，耗时：Encoder 18.40ms，Decoder 20.84ms。
 * 使用ORT量化后，模型测试结果WER：6.06%，耗时：Encoder 7.34ms，Decoder 3.32ms。数据集效果下降1.46%，而Encoder加速2.5倍，Decoder加速6.3倍。
+* 使用PPQ量化后，模型测试结果WER：5.71%，耗时：Encoder 12.14ms，Decoder 2.68ms。数据集效果下降1.11%，而Encoder加速1.5倍，Decoder加速7.7倍。
 
 
 Docker运行方法：
@@ -100,17 +101,36 @@ transformer中的attention结构，本可以用一个大算子来实现，但是
 
 优化技术总结如下：
    1. 针对 pytorch 导出的 encoder Slice 算子不支持 bool 输出进行了输入输出的强制转换。(与初赛一致)
+
    2. 针对 encoder 中由 torch.view 算子导出的多个琐碎算子进行了整合，使用 Flatten Transpose 算子进行替换，大大减少了琐碎算子计算。
-   ![image-20220626185714687](https://user-images.githubusercontent.com/92794867/175815924-0b59e1fd-82c7-417c-a7a0-703a8b61400a.png)
+      
+      <img src="https://user-images.githubusercontent.com/92794867/175815924-0b59e1fd-82c7-417c-a7a0-703a8b61400a.png" height="300px" div align=right />
+      
+      <img src="https://user-images.githubusercontent.com/92794867/175853930-4250e78b-f5f9-47c6-adda-a130508403d1.png" height="300px" />
+      
    3. 针对 encoder 中两个 Slice 算子连接使用单 Slice 替换。
-   ![image-20220626185753417](https://user-images.githubusercontent.com/92794867/175815933-42cd9921-db51-4300-9a50-0f62813b0626.png)
+      
+      
+      <img src="https://user-images.githubusercontent.com/92794867/175815933-42cd9921-db51-4300-9a50-0f62813b0626.png" height="300px" />
+      <img src="https://user-images.githubusercontent.com/92794867/175854070-48bddaba-4927-474f-8d47-9b9be2e01a01.png" height="300px" />
+      
+      
+      
    4. 针对大矩阵和固定矩阵乘法计算连接 Slice 的情况对固定的运算进行提前计算，减少了运行时多与的计算。
-   ![image-20220626185835504](https://user-images.githubusercontent.com/92794867/175815950-202b41e9-7c51-418e-afe0-b5402e948868.png)
+      <img src="https://user-images.githubusercontent.com/92794867/175815950-202b41e9-7c51-418e-afe0-b5402e948868.png" height="300px" />
+      <img src="https://user-images.githubusercontent.com/92794867/175857282-273b0fa0-02ca-4f9d-b742-dd150539e8e2.png" height="300px" />
+      
    5. 对 LayerNorm 操作的大量算子使用 fp16/fp32 高效 Plugin 替换。
-   ![image-20220626190114375](https://user-images.githubusercontent.com/92794867/175815955-1b6f6283-fa1f-49e9-84e0-07aee1229feb.png)
+      <img src="https://user-images.githubusercontent.com/92794867/175815955-1b6f6283-fa1f-49e9-84e0-07aee1229feb.png" height="300px" />
+      <img src="https://user-images.githubusercontent.com/92794867/175854299-1d41f089-188c-4f4c-9aaa-717cb9cb24c2.png" height="300px" />
+      
    6. 针对 Attention Mask  Softmax 部分使用 AttentionMaskSoftmaxPlugin 进行替换。
-   ![image-20220626190530810](https://user-images.githubusercontent.com/92794867/175815961-d6beb1fa-1a42-4afe-9ffb-34d0404a713d.png)
+      <img src="https://user-images.githubusercontent.com/92794867/175815961-d6beb1fa-1a42-4afe-9ffb-34d0404a713d.png" height="300px" />
+      <img src="https://user-images.githubusercontent.com/92794867/175854399-d6c406f1-5a4e-4dea-aea0-0f9122e5c511.png" height="300px" />
+      
    7. 对于所有的 mask 计算加入到输入，提前计算好根据输入的 mask，减少在运行时额外计算。
+         <img src="https://user-images.githubusercontent.com/92794867/175854521-c8e2ebdb-894d-4869-8eaf-a8645fb06fa5.png" height="300px" />
+
    8. 根据 FastTransformer 实现上述 Plugin，实现 fp16/fp32 的模板。使用 onnxruntime 对所有 Conv/MatMul节点 weights 进行 int8 量化，对 Softmax/bias 不进行量化，对 Plugin 包含的节点进行量化。同时使用 ppq 中的 TensorRT quant 配置对 encoder decoder 全部节点进行自适应量化，对 Plugin 包含的节点选择 fp16/fp32 构建。
 
 
@@ -119,32 +139,149 @@ transformer中的attention结构，本可以用一个大算子来实现，但是
 - Environment
   - TensorRT 8.4 GA
   - CUDA11.7 CUDNN 8.4.1
-  - nvcr.io/nvidia/tensorrt:22.05-py3
-  - 510.47.03
+  - NVIDIA Telsa A10 24GB
+  - RAM 32GB
+  - Ubuntu 20.04
+  - python3.8
+  - Driver 510.47.03
+  - See other environment in requirements.txt
 
-| model            | b1(ms)             | b4(ms)             | b8(ms)             | b16(ms)            | error b1 | error b4 | error b8 | error b16 |
-| ---------------- | ------------------ | ------------------ | ------------------ | ------------------ | -------- | -------- | -------- | --------- |
-| original encoder | 18.403791837792642 | 23.53952972742475  | 26.169091756967667 | 30.779932178173716 |          |          |          |           |
-| original decoder | 20.84104462876254  | 22.358369596432553 | 22.91126618394649  | 23.61681683741648  | 4.63     | 4.78     | 4.82     | 4.85      |
-| our encoder      | 7.8731064322742474 | 11.380562555183946 | 15.680679668896321 | 26.150049973273937 |          |          |          |           |
-| our decoder      | 3.5666254789576364 | 9.271438920847269  | 17.830058614269788 | 36.37694616035635  | 6.06     | 6.25     | 6.43     | 6.72      |
+### nsys profile
+
+对原始模型转换 engine 分析：
+
+<img src="https://user-images.githubusercontent.com/92794867/175858320-ad0c9475-2110-4066-b583-447fcdbf932d.png" height="300px" />
+
+图中 Slice_84_Cast 部分总耗时较大，这部分我们采用删除 Slice_84 将两个连续的 Slice 替换为一个避免了在这部分推理的耗时。修改后的效果如下:
+
+<img src="https://user-images.githubusercontent.com/92794867/175858672-5186e04e-5a97-44fb-bbbd-afa5cc98824f.png" height="300px" />
+可以看到这部分融合后总耗时降低4倍，说明本次修改提速较大。
+
+ <img src="https://user-images.githubusercontent.com/92794867/175858995-25a36486-1598-4449-a457-f0348551cf27.png" height="300px" />
+模型中存在很多 Conv 算子，他们的耗时普遍较大，因此我们尝试将所有 Conv 的权重进行量化，从而提高 Conv 的计算速度，修改后部分结果如下:
+
+<img src="https://user-images.githubusercontent.com/92794867/175859460-3272215b-9293-4239-90a4-e6d3f348a1c7.png" height="300px" />
+Conv 经过量化后速度提升一倍，提速效果较好。同样的我们对于 MatMul 节点也进行了量化。
+
+我们测试对比了 Plugin 的推理速度
+
+<img src="https://user-images.githubusercontent.com/92794867/175861573-a7c96f1a-8de0-4db9-a95e-066c76051cdb.png" height="50px" />
+<img src="https://user-images.githubusercontent.com/92794867/175860696-2fd7fee7-8948-4230-8ada-c68a77ae1ed5.png" height="50px" />
+TensorRT 自动融合会将 masked softmax 部分操作融合到一起，使用 Plugin 后可以对这部分操作加速。
+
+| model             | b1(ms)  | b4(ms)  | b8(ms)  | b16(ms) | error b1 | error b4 | error b8 | error b16 |
+| ----------------- | ------- | ------- | ------- | ------- | -------- | -------- | -------- | --------- |
+| original encoder  | 18.4037 | 23.5395 | 26.1690 | 30.7799 |          |          |          |           |
+| original decoder  | 20.8410 | 22.3583 | 22.9112 | 23.6168 | 4.63     | 4.78     | 4.82     | 4.85      |
+| ort quant encoder | 7.8731  | 11.3805 | 5.6806  | 26.1500 |          |          |          |           |
+| ort quant decoder | 3.5666  | 9.2714  | 17.830  | 36.3769 | 6.06     | 6.25     | 6.43     | 6.72      |
+| ppq quant encoder | 12.1374 | 29.8226 | 29.7251 | 48.8531 |          |          |          |           |
+| ppq quant decoder | 2.6780  | 8.5099  | 16.4860 | 33.0441 | 5.71     | 6.17     | 6.70     | 7.29      |
+
+本次模型评价指标没有选择与初赛类似的方式，原因是 encoder 的输出包含范围较大的整数和浮点数，输出经过 decoder 后会经过后续的解码，中间输出对 decoder 的影响较小，当模型经过量化后，使用相对误差和绝对误差评判结果，误差可能达到较大的量级，但是对于语音识别任务而言，效果影响很小，经过测试量化后的模型虽然误差超过10%，但是识别错误率仅仅提高1.5%左右。
+
+original  是经过 pytorch 导出的 onnx 直接使用 trtexec 导出 engine 然后分别对 batch=1/4/8/16 下的推理速度和识别错误率。
+
+ort quant 是我们使用 onnxruntime 提供的 int8 量化对 encoder 和 decoder 中 Conv MatMul 部分量化，然后替换 Plugin 生成 engine 然后分别对 batch=1/4/8/16 下的推理速度和识别错误率。
+
+ppq quant 是我们使用 [PPQ](https://github.com/openppl-public/ppq) 提供的 int8 量化对 encoder 和 decoder 中 Conv MatMul 部分量化，然后替换 Plugin 生成 engine 然后分别对 batch=1/4/8/16 下的推理速度和识别错误率。
+
+上述结果表明，在较小的 batch(1/4/8) 下，经过量化后的模型 encoder 提速两倍左右，decoder 提速五倍左右，错误率仅仅提高 1.5%。
+
+语音识别任务对于端测部署常常使用 batch=1 进行推理，因此我们提供的量化和 Plugin 解决方案完全可以满足工业使用要求，并且提速明显，识别实时性强。
+
+除此之外，对于 batch=16 的情况下，我们发现量化后的模型效果可能变差，分析如下:
+
+<img src="https://user-images.githubusercontent.com/92794867/175862575-234168e1-9560-4872-b8f8-ce5d56c6c431.png" height="50px" />
+<img src="https://user-images.githubusercontent.com/92794867/175862586-03b0be6f-3fd4-421e-bab7-11bb16b99117.png" height="50px" />
+为了保持模型精度，我们只做了部分量化，TensorRT 会针对每个量化的节点插入 QDQ 的计算，由于 encoder 和 decoder 中大量的算子被量化，因此这部分转化节点在 batch 很大的情况下会有影响。
 
 ## Bug报告（可选）
 
 
+
+
 - Environment
+
   - TensorRT 8.4 GA
   - CUDA11.7 CUDNN 8.4.1
-  - nvcr.io/nvidia/tensorrt:22.05-py3
-  - 510.47.03
+  - NVIDIA Telsa A10 24GB
+  - RAM 32GB
+  - Ubuntu 20.04
+  - python3.8
+  - Driver 510.47.03
+  - See other environment in requirements.txt
+
 - Reproduction Steps
-  - Provide detailed reproduction steps for the issue here, including any commands run on the command line.
+  - bug 1:
+
+    ``` shell
+    # download onnx
+    wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/tripleMu/bug_report/encoder_group_conv_quant.onnx
+    # build engine will show group conv201 error
+    trtexec --onnx=./encoder_group_conv_quant.onnx --saveEngine=./encoder.plan \
+            --minShapes=speech:1x1x80,speech_lengths:1 \
+            --optShapes=speech:4x750x80,speech_lengths:4 \
+            --maxShapes=speech:16x1500x80,speech_lengths:16 \
+            --workspace=8192 --int8 --verbose 2>&1 | tee ./log.log
+    # log
+    [06/27/2022-14:12:39] [E] Error[10]: [optimizer.cpp::computeCosts::3628] Error Code 10: Internal Error (Could not find any implementation for node 3161 + PPQ_Operation_102 + (Unnamed Layer* 1958) [Shuffle] + Conv_201 + PWN(Sigmoid_202, Mul_203).)
+    [06/27/2022-14:12:39] [E] Error[2]: [builder.cpp::buildSerializedNetwork::636] Error Code 2: Internal Error (Assertion engine != nullptr failed. )
+    ```
+
+  - bug 2:
+
+    ``` shell
+    # download onnx
+    wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/tripleMu/bug_report/encoder_replaced_flatten.onnx
+    # build plugin
+    sh build_plugin.sh
+    # build engine will show matmul61 error
+    trtexec --onnx=./encoder_replaced_flatten.onnx --saveEngine=./encoder.plan \
+            --minShapes=speech:1x1x80,speech_lengths:1,speech_lengths_mask:1x40x40 \
+            --optShapes=speech:4x750x80,speech_lengths:4,speech_lengths_mask:4x220x220 \
+            --maxShapes=speech:16x1500x80,speech_lengths:16,speech_lengths_mask:16x400x400 \
+            --plugins=./libwenet_plugin.so --int8 \
+            --workspace=24576 --verbose 2>&1 | tee ./log/encoder_build.log
+    # log
+    [06/27/2022-06:42:35] [E] Error[2]: [qdqGraphOptimizer.cpp::reportWeightlessTwoInputConvolutionAsError::230] Error Code 2: Internal Error (MatMul_61: Could not fuse 2nd input (kernel weights) of CONVOLUTION)
+    [06/27/2022-06:42:35] [E] Error[2]: [builder.cpp::buildSerializedNetwork::636] Error Code 2: Internal Error (Assertion engine != nullptr failed. )
+    ```
+
+  - bug 3: 
+
+    ``` shell
+    # download onnx
+    wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/tripleMu/bug_report/encoder_quant_pwn_fusion.onnx
+    # build engine will show group conv213 error
+    trtexec --onnx=./encoder_quant_pwn_fusion.onnx --saveEngine=./encoder.plan \
+            --minShapes=speech:1x1x80,speech_lengths:1 \
+            --optShapes=speech:4x750x80,speech_lengths:4 \
+            --maxShapes=speech:16x1500x80,speech_lengths:16 \
+            --workspace=8192 --int8 --verbose 2>&1 | tee ./log.log
+    # log
+    [06/27/2022-14:56:04] [E] Error[10]: [optimizer.cpp::computeCosts::3628] Error Code 10: Internal Error (Could not find any implementation for node onnx::Conv_3304 + PPQ_Operation_58 + (Unnamed Layer* 2015) [Shuffle] + Conv_213 + PWN(Sigmoid_214, Mul_215).)
+    [06/27/2022-14:56:04] [E] Error[2]: [builder.cpp::buildSerializedNetwork::636] Error Code 2: Internal Error (Assertion engine != nullptr failed. )
+    ```
+
+    
+
+  - bug 4: (8.4.1.4 bug, have been fixed)
 - Expected Behavior
-  - Provide a brief summary of the expected behavior of the software. Provide output files or examples if possible.
+  - 1: group conv 应该可以支持 int8 量化（特殊形状的 kernel 也应该支持）
+  - 2: torch.view 换成 flatten 导出的 onnx Reshape -1 位置应该是固定值，应该可以支持 shape 推导
+  - 3: ppq 量化后的 conv 应该可以正常融合
+  - 4: TRT 8.4.1.4 发现的 bug，TRT8.4.1.5 GA 已经修复了
 - Actual Behavior
-  - Describe the actual behavior of the software and how it deviates from the expected behavior. Provide output files or examples if possible.
+
+  - 1: group conv 量化不支持或特殊形状 kernel 不支持
+  - 2: MatMul_61 节点因为 reshape -1 的操作无法是别是固定 shape 的 weights
+  - 3: 量化后的 conv213 不支持融合
 - Additional Notes
   - Provide any additional context here you think might be useful for the TensorRT team to help debug this issue (such as experiments done, potential things to investigate).
+
+
+
 
 ## 经验与体会（可选）
 
